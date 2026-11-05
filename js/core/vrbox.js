@@ -9,7 +9,7 @@
   'use strict';
   var R = window.REGO, THREE = window.THREE;
   var V = R.vrbox = { active: false, passthrough: false, torchOn: false, mode: '3dof', stream: null, video: null };
-  var DEF = { ipd: 0.063, fov: 95, distortion: true, k1: 0.22, k2: 0.24, track: '3dof', predictMs: 18, scale: 1.4, useMag: true, accelMove: true };
+  var DEF = { ipd: 0.063, fov: 95, distortion: true, k1: 0.22, k2: 0.24, track: '3dof', predictMs: 18, scale: 1.4, useMag: true, accelMove: true, flip: 'auto' };
   V.cfg = (function () { var c = R.store.get('vrbox', {}); for (var k in DEF) if (!(k in c)) c[k] = DEF[k]; return c; })();
   V.save = function () { R.store.set('vrbox', V.cfg); };
 
@@ -72,20 +72,34 @@
     // orientação inicial a partir da gravidade (sem esperar a convergência)
     var g = acc.clone().normalize(); qF.setFromUnitVectors(g, new THREE.Vector3(0, 0, 1)); have = true;
   }
+  // celular girado 180° no VR Box (o WebView às vezes informa a rotação da tela errada):
+  // detecta pela gravidade e corrige todos os sensores juntos (giro, acelerômetro, magnetômetro)
+  V.flip = V.cfg.flip === '180'; var flipVotes = 0;
+  function fx(x) { return V.flip ? -x : x; }
+  function checkFlip(ay) {
+    if (V.cfg.flip !== 'auto') { V.flip = V.cfg.flip === '180'; return; }
+    // olhando para a frente, a gravidade (reação) aponta para cima na tela: y > 0. Se ficar negativa por ~1 s, está invertido.
+    if (ay < -6) flipVotes++; else if (ay > 6) flipVotes = 0;
+    if (flipVotes > 60) { V.flip = !V.flip; flipVotes = 0; have = false; if (accOk) initFromAccel(); R.ui.toast('Orientação do celular corrigida (girado 180°)', 2); }
+  }
   function startSensors() {
     V.mode = '3dof'; var ok = false;
     try {
       if (window.Gyroscope && window.Accelerometer) {
         var hz = 200, gyro = new Gyroscope({ frequency: hz, referenceFrame: 'screen' }), ac = new Accelerometer({ frequency: 100, referenceFrame: 'screen' });
-        ac.addEventListener('reading', function () { acc.set(ac.x, ac.y, ac.z); if (!accOk) { accOk = true; if (!have) initFromAccel(); } updateMotion(); });
+        ac.addEventListener('reading', function () {
+          if (!accOk && V.cfg.flip === 'auto' && ac.y < -5) V.flip = true; // primeira leitura já diz se está de cabeça para baixo
+          acc.set(fx(ac.x), fx(ac.y), ac.z); checkFlip(acc.y);
+          if (!accOk) { accOk = true; if (!have) initFromAccel(); } updateMotion();
+        });
         gyro.addEventListener('reading', function () {
-          var t = gyro.timestamp / 1000; var dt = lastGT ? Math.min(0.05, t - lastGT) : 0; lastGT = t;
-          if (dt > 0) fuse(gyro.x, gyro.y, gyro.z, dt);
+          var t = gyro.timestamp / 1000; var dt = lastGT ? Math.min(0.12, t - lastGT) : 0; lastGT = t;
+          if (dt > 0 && accOk) fuse(fx(gyro.x), fx(gyro.y), gyro.z, dt); // só integra depois de saber onde é "para baixo"
           V.lastSensor = performance.now();
         });
         gyro.addEventListener('error', function () { if (!have) fallback(); });
         gyro.start(); ac.start(); ok = true; V.sensor = 'fusão própria (giroscópio ' + hz + ' Hz + acelerômetro' + (window.Magnetometer ? ' + magnetômetro' : '') + ')';
-        if (window.Magnetometer && V.cfg.useMag) { try { var mg = new Magnetometer({ frequency: 30, referenceFrame: 'screen' }); mg.addEventListener('reading', function () { mag = new THREE.Vector3(mg.x, mg.y, mg.z); }); mg.start(); } catch (e) {} }
+        if (window.Magnetometer && V.cfg.useMag) { try { var mg = new Magnetometer({ frequency: 30, referenceFrame: 'screen' }); mg.addEventListener('reading', function () { mag = new THREE.Vector3(fx(mg.x), fx(mg.y), mg.z); }); mg.start(); } catch (e) {} }
         V.fusion = true;
       }
     } catch (e) { ok = false; }
@@ -130,6 +144,14 @@
     };
     if (window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission) DeviceOrientationEvent.requestPermission().then(go, go); else go();
   }
+  var qFlip = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI);
+  // reserva sem acelerômetro próprio: usa a gravidade do devicemotion para detectar a virada
+  window.addEventListener('devicemotion', function (e) {
+    if (V.fusion || !V.active || !e.accelerationIncludingGravity) return;
+    var g = e.accelerationIncludingGravity, ang = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+    var ay = ang === 90 ? -g.x : ang === 270 || ang === -90 ? g.x : ang === 180 ? -g.y : g.y; // gravidade no eixo "para cima" da tela
+    checkFlip(V.flip ? -ay : ay);
+  });
   var qPred = new THREE.Quaternion(), wpred = new THREE.Vector3();
   V.updateHead = function () {
     if (!V.active || V.mode !== '3dof' || !have) return;
@@ -139,7 +161,7 @@
       qPred.copy(qF); var ang = wF.length() * lead;
       if (ang > 1e-6 && ang < 0.6) { qPred.multiply(tmpq.setFromAxisAngle(wpred.copy(wF).normalize(), ang)); }
       qPred.premultiply(qWorld);
-    } else qPred.copy(qSensor);
+    } else { qPred.copy(qSensor); if (V.flip) qPred.multiply(qFlip); }
     R.camera.quaternion.copy(yawFix).multiply(qPred);
     if (V.cfg.accelMove) R.camera.position.copy(V.headOffset); else R.camera.position.set(0, 0, 0);
     if (V.floorH) R.settings.height = V.floorH;
@@ -219,8 +241,17 @@
 
   // ---------------------------------------------------------------- render estéreo
   var eyeL = new THREE.PerspectiveCamera(), eyeR = new THREE.PerspectiveCamera(), rt = null, post = null;
-  var bgScene = new THREE.Scene(), bgCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), bgMat = new THREE.MeshBasicMaterial({ depthTest: false, depthWrite: false });
-  bgScene.add(new THREE.Mesh(new THREE.PlaneBufferGeometry(2, 2), bgMat));
+  // realidade mista com escala real: a imagem da câmera vira um plano preso à cabeça, do tamanho exato
+  // que a lente da câmera enxerga (FOV da câmera, não o FOV do olho) => mão real e virtual se alinham.
+  var bgCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), bgMat = new THREE.MeshBasicMaterial({ depthTest: false, depthWrite: false });
+  var bgScene = new THREE.Scene(), bgPlane = new THREE.Mesh(new THREE.PlaneBufferGeometry(1, 1), bgMat); bgScene.add(bgPlane);
+  var BGD = 20, bgFwd = new THREE.Vector3();
+  function placeBg(eye) {
+    var fov = THREE.MathUtils.degToRad((R.handtrack && R.handtrack.cfg.camFov) || 66), v = V.video;
+    var asp = v && v.videoWidth ? v.videoWidth / v.videoHeight : 4 / 3, wdt = 2 * BGD * Math.tan(fov / 2);
+    bgPlane.quaternion.copy(qW); bgFwd.set(0, 0, -BGD).applyQuaternion(qW);
+    bgPlane.position.copy(camW).add(bgFwd); bgPlane.scale.set(wdt, wdt / asp, 1); bgPlane.updateMatrixWorld(true);
+  }
   var hidden = [], hideT = 0;
   function collectSky(scene) { hidden = []; scene.traverse(function (o) { if (o.userData && (o.userData.sky || o.userData.ground)) hidden.push(o); }); }
   function buildPost() {
@@ -263,7 +294,7 @@
     for (var k = 0; k < 2; k++) {
       var x = k * half / pr, w = half / pr, h = H / pr; // setViewport multiplica pelo pixelRatio
       r.setViewport(x, 0, w, h); r.setScissor(x, 0, w, h);
-      if (mr) r.render(bgScene, bgCam);
+      if (mr) { if (V.mode === '6dof') r.render(bgScene, bgCam); else { placeBg(); r.render(bgScene, k ? eyeR : eyeL); } }
       r.clearDepth();
       r.render(scene, k ? eyeR : eyeL);
     }

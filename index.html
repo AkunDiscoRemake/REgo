@@ -32,13 +32,14 @@
       <label>Campo de visão <input type="range" name="fov" min="70" max="115" step="1"><output></output></label>
       <label>Predição da cabeça (ms) <input type="range" name="predictMs" min="0" max="40" step="1"><output></output></label>
       <label>Resolução <input type="range" name="scale" min="0.75" max="2.5" step="0.05"><output></output></label>
+      <label>Orientação do celular no VR Box <select name="flip"><option value="auto">Automática (pela gravidade)</option><option value="normal">Normal</option><option value="180">Girada 180° (tudo invertido)</option></select></label>
       <label>Magnetômetro corrige a deriva do giro <select name="useMag"><option value="1">Sim</option><option value="0">Não (perto de ímãs/metais)</option></select></label>
       <label>Movimento da cabeça pelo acelerômetro <select name="accelMove"><option value="1">Sim (inclinar/agachar)</option><option value="0">Não</option></select></label>
       <p class="hint">Fusão própria: giroscópio a 200 Hz + acelerômetro (gravidade) + magnetômetro (norte). Pular de verdade = pular nos jogos. Altura da cabeça até o chão: no APK, use "Altura (chão)" na central de controle (barômetro) — o magnetômetro mede campo magnético, não distância.</p>
     </fieldset>
     <fieldset><legend>Hand tracking</legend>
       <label>Ativar <select name="htOn"><option value="1">Sim</option><option value="0">Não</option></select></label>
-      <label>Acelerador <select name="engine"><option value="npu">NPU (WebNN)</option><option value="gpu">GPU (WebGPU)</option><option value="cpu">CPU (WASM int8)</option></select></label>
+      <label>Acelerador <select name="engine"><option value="npu">NPU — APK: NNAPI/XNNPACK nativo, escolhe o mais rápido</option><option value="gpu">GPU (WebGPU)</option><option value="cpu">CPU (WASM int8)</option><option value="webnn">WebNN (experimental, não recomendado em XR)</option></select></label>
       <label>Execução <select name="async"><option value="1">Assíncrona (thread separada)</option><option value="0">Síncrona (thread principal)</option></select></label>
       <label>Filtro <select name="filter"><option value="oneeuro">One Euro</option><option value="kalman">Kalman</option><option value="ema">Média exponencial</option><option value="none">Nenhum (cru)</option></select></label>
       <label>Suavização (One Euro: corte mín.) <input type="range" name="minCutoff" min="0.1" max="5" step="0.1"><output></output></label>
@@ -49,7 +50,8 @@
       <label>Detector a cada N quadros <input type="range" name="detEvery" min="1" max="30" step="1"><output></output></label>
       <label>Mãos <select name="maxHands"><option value="1">1</option><option value="2">2</option></select></label>
       <label>Aparência das mãos <select name="handStyle"><option value="realista">Mão realista (pele)</option><option value="classico">Luva cortada Clássica</option><option value="fofinho">Luva cortada Fofinha (peludinha)</option></select></label>
-      <label>Campo de visão da câmera <input type="range" name="camFov" min="50" max="90" step="1"><output></output></label>
+      <label>Campo de visão da câmera (ajusta o tamanho da realidade mista) <input type="range" name="camFov" min="50" max="90" step="1"><output></output></label>
+      <label>Mão virtual na realidade mista <select name="mrHand"><option value="0">Oculta (sua mão real aparece, latência zero)</option><option value="1">Visível</option></select></label>
       <p class="hint" id="npuinfo"></p>
     </fieldset>
     <fieldset><legend>Extras</legend>

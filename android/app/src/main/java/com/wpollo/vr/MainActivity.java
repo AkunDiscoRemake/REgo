@@ -81,6 +81,7 @@ public class MainActivity extends Activity implements android.hardware.SensorEve
         final WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
                 .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this)).build();
         web.setWebViewClient(new WebViewClient() {
+            @Override public void onPageFinished(WebView v, String url) { openBinaryChannel(); }
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest req) {
                 String path = req.getUrl().getPath();
@@ -148,22 +149,39 @@ public class MainActivity extends Activity implements android.hardware.SensorEve
     @Override public void onAccuracyChanged(android.hardware.Sensor s, int a) { }
 
     // ------------------------------------------------------------------ inferência nativa (NNAPI)
-    private OrtSession open(String file, boolean fp16) throws Exception {
-        byte[] model;
+    private byte[] readAsset(String file) throws Exception {
         try (java.io.InputStream in = getAssets().open("www/assets/ml/" + file)) {
             java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream(); byte[] buf = new byte[1 << 16]; int n;
-            while ((n = in.read(buf)) > 0) bo.write(buf, 0, n); model = bo.toByteArray();
+            while ((n = in.read(buf)) > 0) bo.write(buf, 0, n); return bo.toByteArray();
         }
-        OrtSession.SessionOptions o = new OrtSession.SessionOptions();
-        o.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
-        o.setIntraOpNumThreads(2);
-        try {
-            java.util.EnumSet<NNAPIFlags> fl = java.util.EnumSet.noneOf(NNAPIFlags.class);
-            if (fp16) fl.add(NNAPIFlags.USE_FP16);
-            o.addNnapi(fl);
-            nnEp = "nnapi";
-        } catch (Exception e) { nnEp = "cpu"; }
-        return env.createSession(model, o);
+    }
+    /** Cria a sessão em cada acelerador possível, mede e fica com o mais rápido (NNAPI/NPU, XNNPACK/NEON, CPU). */
+    private OrtSession open(String file, long[] shape) throws Exception {
+        byte[] model = readAsset(file);
+        String[] kinds = {"nnapi", "xnnpack", "cpu"};
+        OrtSession best = null; String bestKind = "cpu"; double bestMs = 1e9;
+        float[] dummy = new float[(int) (shape[1] * shape[2] * shape[3])];
+        for (String k : kinds) {
+            OrtSession s = null;
+            try {
+                OrtSession.SessionOptions o = new OrtSession.SessionOptions();
+                o.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
+                int cores = Math.max(2, Math.min(4, Runtime.getRuntime().availableProcessors() / 2));
+                if (k.equals("nnapi")) { o.addNnapi(java.util.EnumSet.of(NNAPIFlags.USE_FP16)); o.setIntraOpNumThreads(1); }
+                else if (k.equals("xnnpack")) { java.util.Map<String, String> m = new java.util.HashMap<>(); m.put("intra_op_num_threads", String.valueOf(cores)); o.addXnnpack(m); o.setIntraOpNumThreads(1); o.addConfigEntry("session.intra_op.allow_spinning", "0"); }
+                else o.setIntraOpNumThreads(cores);
+                s = env.createSession(model, o);
+                try (OnnxTensor t = OnnxTensor.createTensor(env, FloatBuffer.wrap(dummy), shape)) {
+                    for (int i = 0; i < 2; i++) s.run(java.util.Collections.singletonMap("input", t)).close();
+                    long t0 = System.nanoTime(); for (int i = 0; i < 4; i++) s.run(java.util.Collections.singletonMap("input", t)).close();
+                    double ms = (System.nanoTime() - t0) / 4e6;
+                    if (ms < bestMs) { if (best != null) best.close(); best = s; bestMs = ms; bestKind = k; s = null; }
+                }
+            } catch (Exception e) { /* acelerador indisponível neste aparelho */ }
+            finally { if (s != null) try { s.close(); } catch (Exception ignored) { } }
+        }
+        nnEp = bestKind + " " + Math.round(bestMs) + "ms";
+        return best;
     }
 
     private static float[] toChw(byte[] rgba, int size, float[] mean, float[] std, boolean bgr) {
@@ -201,18 +219,21 @@ public class MainActivity extends Activity implements android.hardware.SensorEve
             nn.execute(() -> {
                 try {
                     env = OrtEnvironment.getEnvironment();
-                    pose = open("hand_pose_fp32.onnx", true);
+                    pose = open("hand_pose_fp32.onnx", new long[]{1, 3, 256, 256});
                     String ep = nnEp;
-                    det = open("hand_det_fp32.onnx", false);
-                    js("window.__wpNative&&__wpNative.ready(" + (ep.equals("nnapi") ? "'nnapi-npu'" : "'cpu-nativo'") + ")");
+                    det = open("hand_det_fp32.onnx", new long[]{1, 3, 320, 320});
+                    js("window.__wpNative&&__wpNative.ready(" + org.json.JSONObject.quote("pose: " + ep + " • detector: " + nnEp) + ")");
                 } catch (Exception e) { js("window.__wpNative&&__wpNative.fail(" + org.json.JSONObject.quote(String.valueOf(e.getMessage())) + ")"); }
             });
         }
         /** recorte 256x256 RGBA em base64 -> 21 pontos (x,y no recorte, score) */
-        @JavascriptInterface public void nnPose(final int id, final String b64) {
-            nn.execute(() -> {
+        @JavascriptInterface public void nnPose(final int id, final String b64) { nn.execute(() -> js("__wpNative.done(" + id + "," + poseJson(Base64.decode(b64, Base64.DEFAULT)) + ")")); }
+        @JavascriptInterface public void nnDet(final int id, final String b64) { nn.execute(() -> js("__wpNative.done(" + id + "," + detJson(Base64.decode(b64, Base64.DEFAULT)) + ")")); }
+    }
+
+    String poseJson(byte[] rgba) {
                 try {
-                    float[] in = toChw(Base64.decode(b64, Base64.DEFAULT), 256, new float[]{123.675f, 116.28f, 103.53f}, new float[]{58.395f, 57.12f, 57.375f}, false);
+                    float[] in = toChw(rgba, 256, new float[]{123.675f, 116.28f, 103.53f}, new float[]{58.395f, 57.12f, 57.375f}, false);
                     try (OnnxTensor t = OnnxTensor.createTensor(env, FloatBuffer.wrap(in), new long[]{1, 3, 256, 256});
                          OrtSession.Result r = pose.run(java.util.Collections.singletonMap("input", t))) {
                         float[][][] sx = (float[][][]) r.get(0).getValue(), sy = (float[][][]) r.get(1).getValue();
@@ -224,25 +245,45 @@ public class MainActivity extends Activity implements android.hardware.SensorEve
                             if (k > 0) sb.append(',');
                             sb.append(bx / 2f).append(',').append(by / 2f).append(',').append(Math.min(vx, vy));
                         }
-                        js("__wpNative.done(" + id + ",[" + sb.append("]").toString().substring(1) + ")");
+                        return "[" + sb.append("]").toString().substring(1);
                     }
-                } catch (Exception e) { js("__wpNative.done(" + id + ",null)"); }
-            });
-        }
-        /** imagem 320x320 RGBA (letterbox) -> caixas [x1,y1,x2,y2,score]* */
-        @JavascriptInterface public void nnDet(final int id, final String b64) {
-            nn.execute(() -> {
+                } catch (Exception e) { return "null"; }
+    }
+    String detJson(byte[] rgba) {
                 try {
-                    float[] in = toChw(Base64.decode(b64, Base64.DEFAULT), 320, new float[]{103.53f, 116.28f, 123.675f}, new float[]{57.375f, 57.12f, 58.395f}, true);
+                    float[] in = toChw(rgba, 320, new float[]{103.53f, 116.28f, 123.675f}, new float[]{57.375f, 57.12f, 58.395f}, true);
                     try (OnnxTensor t = OnnxTensor.createTensor(env, FloatBuffer.wrap(in), new long[]{1, 3, 320, 320});
                          OrtSession.Result r = det.run(java.util.Collections.singletonMap("input", t))) {
                         float[][][] d = (float[][][]) r.get(0).getValue();
                         StringBuilder sb = new StringBuilder("[");
                         for (int k = 0; k < d[0].length; k++) { if (k > 0) sb.append(','); for (int c = 0; c < 5; c++) { if (c > 0) sb.append(','); sb.append(d[0][k][c]); } }
-                        js("__wpNative.done(" + id + "," + sb.append("]") + ")");
+                        return sb.append("]").toString();
                     }
-                } catch (Exception e) { js("__wpNative.done(" + id + ",null)"); }
+                } catch (Exception e) { return "null"; }
+    }
+
+    // canal binário WebMessagePort: o JS manda [tipo][id][RGBA] como ArrayBuffer (sem base64, sem cópia em texto)
+    private androidx.webkit.WebMessagePortCompat nnPort;
+    void openBinaryChannel() {
+        try {
+            if (!androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.WEB_MESSAGE_ARRAY_BUFFER)
+                    || !androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.CREATE_WEB_MESSAGE_CHANNEL)) return;
+            androidx.webkit.WebMessagePortCompat[] ports = androidx.webkit.WebViewCompat.createWebMessageChannel(web);
+            nnPort = ports[0];
+            nnPort.setWebMessageCallback(new androidx.webkit.WebMessagePortCompat.WebMessageCallbackCompat() {
+                @Override public void onMessage(androidx.webkit.WebMessagePortCompat p, androidx.webkit.WebMessageCompat m) {
+                    if (m == null || m.getType() != androidx.webkit.WebMessageCompat.TYPE_ARRAY_BUFFER) return;
+                    final byte[] b = m.getArrayBuffer();
+                    nn.execute(() -> {
+                        int id = java.nio.ByteBuffer.wrap(b, 1, 4).getInt();
+                        byte[] px = java.util.Arrays.copyOfRange(b, 5, b.length);
+                        String d = b[0] == 1 ? poseJson(px) : detJson(px);
+                        final String msg = "{\"id\":" + id + ",\"d\":" + d + "}";
+                        runOnUiThread(() -> nnPort.postMessage(new androidx.webkit.WebMessageCompat(msg)));
+                    });
+                }
             });
-        }
+            androidx.webkit.WebViewCompat.postWebMessage(web, new androidx.webkit.WebMessageCompat("wpnn-port", new androidx.webkit.WebMessagePortCompat[]{ports[1]}), android.net.Uri.parse("*"));
+        } catch (Throwable ignored) { }
     }
 }

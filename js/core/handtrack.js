@@ -8,9 +8,11 @@
 (function () {
   'use strict';
   var R = window.REGO, THREE = window.THREE, V3 = THREE.Vector3;
-  var DEF = { engine: 'npu', async: true, filter: 'oneeuro', minCutoff: 1.0, beta: 0.04, kalmanQ: 0.02, kalmanR: 0.4, ema: 0.5, predictMs: 25,
+  var DEF = { engine: 'npu', async: true, mrHand: false, filter: 'oneeuro', minCutoff: 1.0, beta: 0.04, kalmanQ: 0.02, kalmanR: 0.4, ema: 0.5, predictMs: 25,
     camRes: '640x480', detEvery: 8, maxHands: 2, detConf: 0.35, poseConf: 0.25, camFov: 66, handScale: 1.0, camOffsetX: 0.0 };
   var H = R.handtrack = {};
+  // o APK entrega o canal binário assim que a página carrega: guarda já (o motor de mãos carrega depois)
+  window.addEventListener('message', function (e) { if (e.data === 'wpnn-port' && e.ports && e.ports[0]) window.__wpnnPort = e.ports[0]; });
   H.cfg = (function () { var c = R.store.get('handtrack', {}); for (var k in DEF) if (!(k in c)) c[k] = DEF[k]; return c; })();
   H.save = function () { R.store.set('handtrack', H.cfg); if (worker) worker.postMessage({ type: 'cfg', cfg: workerCfg() }); };
   var run = false, ready = false, stat = 'desligado', worker = null, lastMs = 0, epName = '', video = null, lastT = 0;
@@ -233,12 +235,17 @@
     R.camera.updateMatrixWorld(true);
     hands.forEach(function (h, i) {
       var vis = h.loc && now - h.seen < 0.35;
-      h.g.visible = !!vis; if (h.skin && h.skin.ok) h.skin.root.visible = !!vis; if (!vis) { if (h.ptr) h.ptr.lost = true; return; }
+      h.g.visible = !!vis; if (h.skin && h.skin.ok) h.skin.root.visible = !!vis; if (h.tipDot && !vis) h.tipDot.visible = false; if (!vis) { if (h.ptr) h.ptr.lost = true; return; }
       if (!h.g.parent) R.scene.add(h.g);
       for (var k = 0; k < 21; k++) h.pts[k].copy(h.loc[k]).applyMatrix4(R.camera.matrixWorld);
       if (!h.skin && R.assets.models.hand_left && R.assets.models.hand_right) { h.skin = new SkinHand(h.side); if (h.skin.ok) R.scene.add(h.skin.root); }
-      var useSkin = h.skin && h.skin.ok && R.settings.handLook !== 'capsulas';
+      // realidade mista: a mão real já aparece pela câmera (latência zero) => esconde a malha, fica só o ponteiro
+      var hideMesh = R.vrbox && R.vrbox.passthrough && !H.cfg.mrHand;
+      if (!h.tipDot) { h.tipDot = new THREE.Mesh(new THREE.SphereBufferGeometry(0.006, 10, 8), new THREE.MeshBasicMaterial({ color: '#c9a2ff', depthTest: false })); h.tipDot.renderOrder = 71; R.scene.add(h.tipDot); }
+      h.tipDot.visible = hideMesh; h.tipDot.position.copy(h.pts[8]);
+      var useSkin = !hideMesh && h.skin && h.skin.ok && R.settings.handLook !== 'capsulas';
       if (useSkin) { h.skin.root.visible = true; h.skin.pose(h.pts); [h.bG, h.bS, h.jG, h.jS, h.fz, h.palm, h.cuff].forEach(function (m) { m.visible = false; }); }
+      else if (hideMesh) { if (h.skin && h.skin.ok) h.skin.root.visible = false; [h.bG, h.bS, h.jG, h.jS, h.fz, h.palm, h.cuff].forEach(function (m) { m.visible = false; }); }
       else { if (h.skin && h.skin.ok) h.skin.root.visible = false; [h.bG, h.bS, h.jG, h.jS, h.palm, h.cuff].forEach(function (m) { m.visible = true; }); h.draw(); }
       // ponteiro: do "ombro" passando pelo ponto da pinça
       if (!h.ptr) { h.ptr = R.input.makePointer(70 + i); h.ptr.isHand = true; }

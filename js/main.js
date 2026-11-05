@@ -29,9 +29,9 @@
   $('backsplash').addEventListener('click', function () { form.hidden = true; splash.hidden = false; });
   if (apk || (isPhone && !/Pacific/.test(navigator.userAgent))) { $('openbox').textContent = '📱 Configurar VR Box'; }
   var VB = R.vrbox.cfg, HT = R.handtrack.cfg;
-  var MAP = { track: [VB, 'track'], distortion: [VB, 'distortion', 'bool'], ipd: [VB, 'ipd', 'num'], fov: [VB, 'fov', 'num'], predictMs: [VB, 'predictMs', 'num'], scale: [VB, 'scale', 'num'], useMag: [VB, 'useMag', 'bool'], accelMove: [VB, 'accelMove', 'bool'],
+  var MAP = { track: [VB, 'track'], distortion: [VB, 'distortion', 'bool'], ipd: [VB, 'ipd', 'num'], fov: [VB, 'fov', 'num'], predictMs: [VB, 'predictMs', 'num'], scale: [VB, 'scale', 'num'], useMag: [VB, 'useMag', 'bool'], flip: [VB, 'flip'], accelMove: [VB, 'accelMove', 'bool'],
     engine: [HT, 'engine'], async: [HT, 'async', 'bool'], filter: [HT, 'filter'], minCutoff: [HT, 'minCutoff', 'num'], beta: [HT, 'beta', 'num'], kalmanQ: [HT, 'kalmanQ', 'num'],
-    predictMs_h: [HT, 'predictMs', 'num'], camRes: [HT, 'camRes'], detEvery: [HT, 'detEvery', 'num'], maxHands: [HT, 'maxHands', 'num'], camFov: [HT, 'camFov', 'num'] };
+    predictMs_h: [HT, 'predictMs', 'num'], camRes: [HT, 'camRes'], detEvery: [HT, 'detEvery', 'num'], maxHands: [HT, 'maxHands', 'num'], camFov: [HT, 'camFov', 'num'], mrHand: [HT, 'mrHand', 'bool'] };
   function fill() {
     Object.keys(MAP).forEach(function (n) {
       var el = form.elements[n], m = MAP[n], v = m[0][m[1]]; if (!el) return;

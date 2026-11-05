@@ -16,7 +16,9 @@
 
   function mk(w) { var c = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(w, w) : (function () { var e = document.createElement('canvas'); e.width = e.height = w; return e; })(); return c; }
   function providers(engine) {
-    if (engine === 'npu') return [[{ name: 'webnn', deviceType: 'npu', powerPreference: 'low-power' }], [{ name: 'webnn', deviceType: 'gpu' }], ['webgpu'], ['wasm']];
+    if (engine === 'webnn') return [[{ name: 'webnn', deviceType: 'npu' }], ['webgpu'], ['wasm']];
+    // "npu" no navegador: WebNN tem latência ruim para XR, então vai direto para WebGPU (a NPU de verdade é a do APK/NNAPI)
+    if (engine === 'npu') return [['webgpu'], ['wasm']];
     if (engine === 'gpu') return [['webgpu'], [{ name: 'webnn', deviceType: 'gpu' }], ['wasm']];
     return [['wasm']];
   }
@@ -33,7 +35,22 @@
   // ---- motor nativo do APK (ONNX Runtime Android + NNAPI => NPU/DSP). Só na thread principal.
   var nat = false, pend = {}, nid = 1;
   function b64(u8) { var s = ''; for (var i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); }
-  function nrun(kind, px) { return new Promise(function (res, rej) { var id = nid++; pend[id] = function (d) { if (d) res(d); else rej(new Error('falha nativa')); }; G.WpolloAndroid[kind](id, b64(new Uint8Array(px.buffer, px.byteOffset, px.byteLength))); }); }
+  // canal binário com o nativo (sem base64): [tipo 1 byte][id 4 bytes][RGBA]
+  var port = null;
+  function getPort() {
+    if (!port && typeof window !== 'undefined' && window.__wpnnPort) { port = window.__wpnnPort; port.onmessage = function (m) { var o = JSON.parse(m.data); var f = pend[o.id]; delete pend[o.id]; if (f) f(o.d); }; }
+    return port;
+  }
+  function nrun(kind, px) {
+    return new Promise(function (res, rej) {
+      var id = nid++; pend[id] = function (d) { if (d) res(d); else rej(new Error('falha nativa')); };
+      if (getPort()) {
+        var buf = new ArrayBuffer(5 + px.byteLength), u8 = new Uint8Array(buf), dv = new DataView(buf);
+        u8[0] = kind === 'nnPose' ? 1 : 2; dv.setInt32(1, id); u8.set(new Uint8Array(px.buffer, px.byteOffset, px.byteLength), 5);
+        port.postMessage(buf, [buf]);
+      } else G.WpolloAndroid[kind](id, b64(new Uint8Array(px.buffer, px.byteOffset, px.byteLength)));
+    });
+  }
   C.initNative = function (opts) {
     cfg = opts; nat = true;
     cDet = mk(DET); xDet = cDet.getContext('2d', { willReadFrequently: true });
