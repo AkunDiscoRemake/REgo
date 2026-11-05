@@ -1,0 +1,13 @@
+{
+  "name": "REgo OS",
+  "short_name": "REgo",
+  "description": "Sistema WebXR para reviver o Oculus Go: 60+ jogos, multitarefa e UI estilo visionOS.",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#101218",
+  "theme_color": "#101218",
+  "icons": [
+    { "src": "assets/icons/store_bg.png", "sizes": "256x256", "type": "image/png" }
+  ]
+}

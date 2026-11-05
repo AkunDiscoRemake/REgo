@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#101218">
+<meta name="description" content="REgo OS — um sistema WebXR para reviver o Oculus Go: 50+ jogos, multitarefa e UI estilo visionOS.">
+<title>REgo OS</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icons/store_bg.png">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="overlay">
+  <div class="brand"><b>REgo</b> OS <span id="count"></span></div>
+  <button id="enter" disabled>Verificando VR…</button>
+  <div id="hint">Mouse: esquerdo = gatilho • direito arrasta p/ olhar • WASD = touchpad • Q/E girar • Esc = menu</div>
+</div>
+<div id="loading"><div class="spin"></div><div>Carregando REgo OS…</div></div>
+<!-- bibliotecas locais (sem CDN = menor latência) -->
+<script src="js/vendor/three.min.js"></script>
+<script src="js/vendor/cannon.min.js"></script>
+<!-- Go com Oculus Browser antigo (só WebVR 1.1): converte para WebXR -->
+<script>if (!navigator.xr && navigator.getVRDisplays) document.write('<script src="js/vendor/webxr-polyfill.min.js"><\/script><script>new WebXRPolyfill({ cardboard: false });<\/script>');</script>
+<!-- núcleo -->
+<script src="js/core/engine.js"></script>
+<script src="js/core/models.js"></script>
+<script src="js/core/audio.js"></script>
+<script src="js/core/ui.js"></script>
+<script src="js/core/input.js"></script>
+<script src="js/core/physics.js"></script>
+<!-- sistema -->
+<script src="js/os/kit.js"></script>
+<script src="js/os/capture.js"></script>
+<script src="js/os/apps.js"></script>
+<script src="js/os/os.js"></script>
+<!-- jogos -->
+<script src="js/games/bowling.js"></script>
+<script src="js/games/sandbox.js"></script>
+<script src="js/games/blocky.js"></script>
+<script src="js/games/arcade.js"></script>
+<script src="js/games/sports.js"></script>
+<script src="js/games/puzzle.js"></script>
+<script src="js/games/music.js"></script>
+<script src="js/games/racing.js"></script>
+<script src="js/games/relax.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
