@@ -200,6 +200,13 @@
     var res = H.cfg.camRes.split('x');
     return R.vrbox.camera(+res[0], +res[1]).then(function (v) {
       video = v;
+      var native = H.cfg.engine === 'npu' && window.WpolloAndroid && WpolloAndroid.nnAvailable && WpolloAndroid.nnAvailable();
+      if (native) {
+        // APK: NPU de verdade pelo NNAPI (a ponte nativa já roda fora da thread de render)
+        return (window.HandCore ? Promise.resolve() : loadScript('js/core/handcore.js')).then(function () {
+          mainCore = window.HandCore; return mainCore.initNative(workerCfg());
+        }).then(function (r) { ready = true; epName = r.ep; stat = 'ativo (' + (/nnapi/.test(r.ep) ? 'NPU via NNAPI' : 'CPU nativa') + ')'; R.ui.toast('Mãos: ' + stat, 2); });
+      }
       if (H.cfg.async && window.Worker && window.OffscreenCanvas) {
         worker = new Worker('js/core/handcore.js');
         worker.onmessage = function (e) {
@@ -216,7 +223,7 @@
       }
     }).then(function () { pump(); }, function (e) { stat = 'erro: ' + e.message; run = false; R.ui.toast('Câmera: ' + e.message, 4); });
   };
-  function label(ep) { return /npu/.test(ep) ? 'NPU' : /webgpu|gpu/.test(ep) ? 'GPU' : 'CPU'; }
+  function label(ep) { return /nnapi|npu/.test(ep) ? 'NPU' : /webgpu|gpu/.test(ep) ? 'GPU' : 'CPU'; }
   H.stop = function () { run = false; ready = false; stat = 'desligado'; if (worker) { worker.terminate(); worker = null; } hands.forEach(function (h) { h.g.visible = false; }); };
   var busy = false;
   function pump() {

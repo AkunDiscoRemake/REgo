@@ -30,9 +30,22 @@
     };
     return next();
   }
+  // ---- motor nativo do APK (ONNX Runtime Android + NNAPI => NPU/DSP). Só na thread principal.
+  var nat = false, pend = {}, nid = 1;
+  function b64(u8) { var s = ''; for (var i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); }
+  function nrun(kind, px) { return new Promise(function (res, rej) { var id = nid++; pend[id] = function (d) { if (d) res(d); else rej(new Error('falha nativa')); }; G.WpolloAndroid[kind](id, b64(new Uint8Array(px.buffer, px.byteOffset, px.byteLength))); }); }
+  C.initNative = function (opts) {
+    cfg = opts; nat = true;
+    cDet = mk(DET); xDet = cDet.getContext('2d', { willReadFrequently: true });
+    cPose = mk(POSE); xPose = cPose.getContext('2d', { willReadFrequently: true });
+    return new Promise(function (res, rej) {
+      G.__wpNative = { ready: function (e) { ep = e; res({ ep: e, detEp: e }); }, fail: function (m) { rej(new Error(m)); }, done: function (id, d) { var f = pend[id]; delete pend[id]; if (f) f(d); } };
+      G.WpolloAndroid.nnInit();
+    });
+  };
   C.init = function (opts) {
-    cfg = opts; base = opts.modelBase || 'assets/ml/';
-    ort.env.wasm.wasmPaths = opts.wasmPaths || 'js/vendor/ort/';
+    cfg = opts; base = new URL(opts.modelBase || 'assets/ml/', G.location.href).href;
+    ort.env.wasm.wasmPaths = new URL(opts.wasmPaths || 'js/vendor/ort/', G.location.href).href;
     ort.env.wasm.numThreads = (G.crossOriginIsolated && navigator.hardwareConcurrency) ? Math.min(4, navigator.hardwareConcurrency) : 1;
     ort.env.wasm.simd = true;
     cDet = mk(DET); xDet = cDet.getContext('2d', { willReadFrequently: true });
@@ -49,13 +62,24 @@
     var s = Math.min(DET / W, DET / H), w = Math.round(W * s), h = Math.round(H * s);
     xDet.fillStyle = 'rgb(114,114,114)'; xDet.fillRect(0, 0, DET, DET); xDet.drawImage(img, 0, 0, w, h);
     var px = xDet.getImageData(0, 0, DET, DET).data, n = DET * DET;
+    if (nat) return nrun('nnDet', px).then(function (d) {
+      var out = [];
+      for (var k = 0; k + 4 < d.length && out.length < cfg.maxHands; k += 5) {
+        if (d[k + 4] < cfg.detConf) continue;
+        var bxn = { x1: d[k] / s, y1: d[k + 1] / s, x2: d[k + 2] / s, y2: d[k + 3] / s, s: d[k + 4] };
+        if (!out.some(function (o) { return iou(o, bxn) > 0.4; })) out.push(bxn);
+      }
+      return out;
+    });
     // RTMDet: BGR, média/desvio do mmdet
     for (var i = 0, j = 0; i < n; i++, j += 4) { fDet[i] = (px[j + 2] - 103.53) / 57.375; fDet[n + i] = (px[j + 1] - 116.28) / 57.12; fDet[2 * n + i] = (px[j] - 123.675) / 58.395; }
     return det.run({ input: new ort.Tensor('float32', fDet, [1, 3, DET, DET]) }).then(function (o) {
       var d = o.dets.data, cnt = o.dets.dims[1], out = [];
       for (var k = 0; k < cnt && out.length < cfg.maxHands; k++) {
         var sc = d[k * 5 + 4]; if (sc < cfg.detConf) continue;
-        out.push({ x1: d[k * 5] / s, y1: d[k * 5 + 1] / s, x2: d[k * 5 + 2] / s, y2: d[k * 5 + 3] / s, s: sc });
+        var bx = { x1: d[k * 5] / s, y1: d[k * 5 + 1] / s, x2: d[k * 5 + 2] / s, y2: d[k * 5 + 3] / s, s: sc };
+        if (out.some(function (o) { return iou(o, bx) > 0.4; })) continue;
+        out.push(bx);
       }
       return out;
     });
@@ -65,6 +89,11 @@
     xPose.setTransform(1, 0, 0, 1, 0, 0); xPose.fillStyle = '#000'; xPose.fillRect(0, 0, POSE, POSE);
     xPose.setTransform(sc, 0, 0, sc, POSE / 2 - cx * sc, POSE / 2 - cy * sc); xPose.drawImage(img, 0, 0);
     var px = xPose.getImageData(0, 0, POSE, POSE).data, n = POSE * POSE;
+    if (nat) return nrun('nnPose', px).then(function (d) {
+      var kp = new Float32Array(42), score = new Float32Array(21), mean = 0;
+      for (var k = 0; k < 21; k++) { kp[k * 2] = (d[k * 3] - POSE / 2) / sc + cx; kp[k * 2 + 1] = (d[k * 3 + 1] - POSE / 2) / sc + cy; score[k] = d[k * 3 + 2]; mean += score[k]; }
+      return { kp: kp, sc: score, conf: mean / 21 };
+    });
     for (var i = 0, j = 0; i < n; i++, j += 4) { fPose[i] = (px[j] - 123.675) / 58.395; fPose[n + i] = (px[j + 1] - 116.28) / 57.12; fPose[2 * n + i] = (px[j + 2] - 103.53) / 57.375; }
     return pose.run({ input: new ort.Tensor('float32', fPose, [1, 3, POSE, POSE]) }).then(function (o) {
       var X = o.simcc_x.data, Y = o.simcc_y.data, L = o.simcc_x.dims[2], kp = new Float32Array(42), score = new Float32Array(21), mean = 0;
@@ -77,6 +106,10 @@
       }
       return { kp: kp, sc: score, conf: mean / 21 };
     });
+  }
+  function iou(a, b) {
+    var ix = Math.max(0, Math.min(a.x2, b.x2) - Math.max(a.x1, b.x1)), iy = Math.max(0, Math.min(a.y2, b.y2) - Math.max(a.y1, b.y1)), i = ix * iy;
+    return i / ((a.x2 - a.x1) * (a.y2 - a.y1) + (b.x2 - b.x1) * (b.y2 - b.y1) - i + 1e-6);
   }
   function boxFrom(kp) {
     var x1 = 1e9, y1 = 1e9, x2 = -1e9, y2 = -1e9;
@@ -98,7 +131,8 @@
       var chain = Promise.resolve(), hands = [];
       boxes.slice(0, cfg.maxHands).forEach(function (bx) { chain = chain.then(function () { return estimate(img, bx).then(function (h) { if (h.conf >= cfg.poseConf) hands.push(h); }); }); });
       return chain.then(function () {
-        tracks = hands.map(function (h) { return boxFrom(h.kp); });
+        var tb = []; hands = hands.filter(function (h) { var b = boxFrom(h.kp); if (tb.some(function (o) { return iou(o, b) > 0.4; })) return false; tb.push(b); return true; });
+        tracks = tb;
         return { hands: hands, ms: (G.performance || Date).now() - t0, ep: ep };
       });
     });

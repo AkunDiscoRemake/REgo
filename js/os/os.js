@@ -59,7 +59,7 @@
   var CATS = ['Todos', 'Destaques', 'Ação', 'Esporte', 'Física', 'Puzzle', 'Música', 'Relax', 'Corrida'];
   var NAV = [['home', 'house', 'Início'], ['library', 'layout-grid', 'Biblioteca'], ['hands', 'hand', 'Modelos de mãos'], ['env', 'sun', 'Ambiente'],
     ['video', 'video', 'Vídeo'], ['shots', 'image', 'Capturas'], ['settings', 'sliders-horizontal', 'Ajustes'], ['about', 'info', 'Sobre']];
-  var APPICON = { store: ['store', '#8a3cf0'], browser: ['globe', '#2f7bf6'], cloudplay: ['cloud', '#3a3f4b'], tv: ['tv', '#e5484d'], gallery: ['image', '#f2994a'],
+  var APPICON = { chat: ['message-square', '#30a46c'], store: ['store', '#8a3cf0'], browser: ['globe', '#2f7bf6'], cloudplay: ['cloud', '#3a3f4b'], tv: ['tv', '#e5484d'], gallery: ['image', '#f2994a'],
     camera: ['camera', '#ff5d8f'], clock: ['clock', '#30a46c'], calendar: ['calendar', '#e5484d'], calculator: ['calculator', '#5f6b7a'], files: ['folder', '#2f7bf6'],
     messenger: ['message-square', '#8a3cf0'], remote: ['monitor', '#0ea5a4'], settings: ['settings', '#5f6b7a'], help: ['circle-help', '#2f7bf6'],
     facebook: ['globe', '#1877f2'], instagram: ['aperture', '#d62976'], whatsapp: ['message-square', '#25d366'] };
@@ -297,9 +297,10 @@
     });
     win.panel.state = win.st;
     // posiciona em leque ao lado da janela principal
-    var slots = [-0.95, 0.95, 0], used = os.windows.map(function (w) { return w.slot; }), slot = 0;
+    // janelas abrem na frente do Início (mais perto), em leque se houver várias
+    var slots = [0, -0.42, 0.42], used = os.windows.map(function (w) { return w.slot; }), slot = 0;
     for (var s = 0; s < slots.length; s++) if (used.indexOf(s) < 0) { slot = s; break; }
-    win.slot = slot; win.yaw = slots[slot]; win.dist = slot === 2 ? 1.7 : 2.1; win.y = slot === 2 ? 1.25 : 1.45;
+    win.slot = slot; win.yaw = slots[slot]; win.dist = slot === 0 ? 1.55 : 1.7; win.y = 1.4;
     placeWindow(win);
     home.add(win.panel.mesh);
     os.windows.push(win);
@@ -486,7 +487,7 @@
     ui.text(x, fmt(v), X + W, Y + 18, 22, { align: 'right', color: 'rgba(255,255,255,0.7)' });
     var t = (v - a) / (b - a), ty = Y + 52;
     ui.roundRect(x, X, ty, W, 14, 7); x.fillStyle = 'rgba(255,255,255,0.15)'; x.fill();
-    ui.roundRect(x, X, ty, Math.max(14, W * t), 14, 7); x.fillStyle = '#4b8ff8'; x.fill();
+    ui.roundRect(x, X, ty, Math.max(14, W * t), 14, 7); x.fillStyle = ui.ACCENT; x.fill();
     x.beginPath(); x.arc(X + W * t, ty + 7, 16, 0, 7); x.fillStyle = '#fff'; x.fill();
     P.area(id, X - 10, ty - 22, W + 20, 58, null, function (px) {
       if (px === null) return;

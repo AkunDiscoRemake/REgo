@@ -81,8 +81,8 @@
     var c = src.clone(true);
     if (A.realistic() && A.envMap) c.traverse(function (o) { if (o.isMesh && o.material.envMap !== A.envMap) { o.material.envMap = A.envMap; o.material.needsUpdate = true; } });
     if (opts) {
-      if (opts.size) A.fit(c, opts.size, opts.base !== false);
       if (opts.tint) c.traverse(function (o) { if (o.isMesh) { o.material = o.material.clone(); o.material.color.multiply(new THREE.Color(opts.tint)); } });
+      if (opts.size) return A.fit(c, opts.size, opts.base !== false);
     }
     return c;
   };

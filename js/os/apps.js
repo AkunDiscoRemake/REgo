@@ -417,11 +417,153 @@
     openExternal((R.settings.cloudUrl || 'https://www.roblox.com/games/{id}').replace('{id}', w.st.id));
   }
 
+
+  // ---------------------------------------------------------------- Wpollo Chat (servidor próprio, login por username)
+  var CH = { st: R.store.get('chat', { server: '', token: '', me: null }), chats: [], msgs: {}, cur: null, ws: null, imgs: {}, typing: {}, win: null, err: '' };
+  function chSave() { R.store.set('chat', CH.st); }
+  function api(method, path, body, raw) {
+    var h = {}; if (CH.st.token) h.Authorization = 'Bearer ' + CH.st.token;
+    return fetch(CH.st.server.replace(/\/$/, '') + path, { method: method, headers: h, body: raw ? body : body ? JSON.stringify(body) : undefined })
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || r.status); return j; }); });
+  }
+  function chDirty() { if (CH.win) CH.win.panel.dirty = true; }
+  function chImg(id) {
+    if (!CH.imgs[id]) { var i = new Image(); i.crossOrigin = 'anonymous'; i.onload = chDirty; i.src = CH.st.server.replace(/\/$/, '') + '/media/' + id; CH.imgs[id] = i; }
+    return CH.imgs[id];
+  }
+  function chLoad() {
+    return api('GET', '/api/chats').then(function (l) { CH.chats = l; if (!CH.cur && l.length) chOpen(l[0].id); chDirty(); }, function (e) { if (/login/.test(e.message)) { CH.st.token = ''; chSave(); } CH.err = e.message; chDirty(); });
+  }
+  function chOpen(id) {
+    CH.cur = id; chDirty();
+    api('GET', '/api/chats/' + id + '/messages?limit=40').then(function (r) { CH.msgs[id] = r.messages; chDirty(); api('POST', '/api/chats/' + id + '/read'); });
+  }
+  function chConnect() {
+    if (CH.ws || !CH.st.token) return;
+    var url = CH.st.server.replace(/^http/, 'ws').replace(/\/$/, '') + '/ws?token=' + encodeURIComponent(CH.st.token);
+    try { CH.ws = new WebSocket(url); } catch (e) { return; }
+    CH.ws.onmessage = function (e) {
+      var ev = JSON.parse(e.data);
+      if (ev.type === 'message') {
+        (CH.msgs[ev.chat] = CH.msgs[ev.chat] || []).push(ev.message);
+        if (ev.message.from !== (CH.st.me && CH.st.me.username)) { R.sfx.play('notify'); if (ev.chat !== CH.cur || !CH.win) R.ui.toast('💬 ' + ev.message.from + ': ' + (ev.message.text || '📷 imagem'), 3); else api('POST', '/api/chats/' + ev.chat + '/read'); }
+        chLoad();
+      } else if (ev.type === 'typing') { CH.typing[ev.chat] = { u: ev.user, t: Date.now() }; chDirty(); setTimeout(chDirty, 3000); }
+      else chLoad();
+    };
+    CH.ws.onclose = function () { CH.ws = null; if (CH.st.token) setTimeout(chConnect, 3000); };
+  }
+  function chSend(text, image) {
+    if (!CH.cur || (!text && !image)) return;
+    api('POST', '/api/chats/' + CH.cur + '/messages', { text: text, image: image }).catch(function (e) { R.ui.toast(e.message); });
+  }
+  function chSendShot(src) {
+    fetch(src).then(function (r) { return r.blob(); }).then(function (b) { return api('POST', '/api/media', b, true); }).then(function (r) { chSend('', r.id); R.ui.toast('📷 imagem enviada'); }, function (e) { R.ui.toast('Falha: ' + e.message); });
+  }
+  function field(P, x, w, key, X, Y, W, Hh, ph, secret, onEnter) {
+    var v = w.st[key] || '', foc = w.st.focus === key;
+    textField(P, x, 'f' + key, X, Y, W, Hh, secret && v ? v.replace(/./g, '•') : v, ph, function () {
+      w.st.focus = key; R.os.closeKeyboard(w);
+      R.os.keyboardFor(w, function (k) { if (k === '\n') { if (onEnter) onEnter(); return; } typeInto(w.st, key, k, 300); if (key === 'msg' && CH.cur && Date.now() - (w.st.lt || 0) > 2000) { w.st.lt = Date.now(); api('POST', '/api/chats/' + CH.cur + '/typing'); } P.dirty = true; });
+    }, foc);
+  }
+  app({
+    id: 'chat', name: 'Wpollo Chat', size: [1.7, 1.05],
+    open: function (w) { CH.win = w; w.st.server = CH.st.server || 'https://'; if (CH.st.token) { chLoad(); chConnect(); } },
+    close: function () { CH.win = null; },
+    render: function (x, P, w, H) {
+      var W = P.cw;
+      if (!CH.st.token) {
+        ui.icon(x, 'message-square', 40, 34, 44, '#c9a2ff', 2.5);
+        ui.text(x, 'Wpollo Chat', 100, 58, 36, { weight: 800 });
+        ui.text(x, 'Mensagens sem número de telefone: só username. Servidor próprio (veja server/chat no projeto).', 40, 112, 19, { color: 'rgba(255,255,255,0.65)', maxW: W - 80 });
+        var mode = w.st.mode || 'login';
+        field(P, x, w, 'server', 40, 150, W - 80, 56, 'Endereço do servidor (https://…)');
+        field(P, x, w, 'user', 40, 222, (W - 100) / 2, 56, 'username');
+        field(P, x, w, 'pass', 60 + (W - 100) / 2, 222, (W - 100) / 2, 56, 'senha', true);
+        if (mode === 'register') field(P, x, w, 'name', 40, 294, W - 80, 56, 'Nome de exibição');
+        var go = function () {
+          CH.st.server = (w.st.server || '').trim(); CH.err = '';
+          api('POST', mode === 'register' ? '/api/register' : '/api/login', { username: w.st.user, password: w.st.pass, name: w.st.name })
+            .then(function (r) { CH.st.token = r.token; CH.st.me = r.user; chSave(); R.os.closeKeyboard(w); chLoad(); chConnect(); }, function (e) { CH.err = e.message; P.dirty = true; });
+        };
+        P.button('go', 40, H - 150, 300, 64, mode === 'register' ? 'Criar conta' : 'Entrar', go, { fill: ui.ACCENT, fillHover: ui.ACCENT_H });
+        P.button('sw', 360, H - 150, 320, 64, mode === 'register' ? 'Já tenho conta' : 'Criar uma conta', function () { w.st.mode = mode === 'register' ? 'login' : 'register'; });
+        if (CH.err) ui.text(x, '⚠ ' + CH.err, 40, H - 52, 20, { color: '#ff9b9b', maxW: W - 80 });
+        return;
+      }
+      // coluna de conversas
+      var LW = 470;
+      ui.card(x, 20, 20, LW, H - 40, 26);
+      ui.text(x, 'Conversas', 44, 58, 28, { weight: 800 });
+      P.button('newdm', LW - 170, 34, 70, 48, '', function () { w.st.new = 'dm'; w.st.target = ''; }, { lucide: 'message-square' });
+      P.button('newgr', LW - 92, 34, 70, 48, '', function () { w.st.new = 'group'; w.st.target = ''; w.st.gname = ''; }, { lucide: 'layers' });
+      var page = w.st.page || 0, per = 7;
+      CH.chats.slice(page * per, page * per + per).forEach(function (c, i) {
+        var Y = 100 + i * 78, on = c.id === CH.cur;
+        P.button('c' + c.id, 32, Y, LW - 24, 70, '', function () { chOpen(c.id); }, { active: on, r: 18 });
+        var other = c.members.filter(function (m) { return !CH.st.me || m.username !== CH.st.me.username; })[0] || {};
+        x.beginPath(); x.arc(72, Y + 35, 22, 0, 7); x.fillStyle = c.type === 'group' ? '#8a3cf0' : (other.color || '#555'); x.fill();
+        ui.text(x, (c.name || '?').charAt(0).toUpperCase(), 72, Y + 36, 22, { align: 'center', weight: 800 });
+        if (c.type === 'dm' && other.online) { x.beginPath(); x.arc(88, Y + 52, 7, 0, 7); x.fillStyle = '#30d158'; x.fill(); }
+        ui.text(x, c.name || '', 106, Y + 24, 20, { weight: 700, maxW: LW - 190 });
+        ui.text(x, c.last ? (c.last.image ? '📷 imagem' : c.last.text) : 'sem mensagens', 106, Y + 50, 16, { color: 'rgba(255,255,255,0.6)', maxW: LW - 190 });
+        if (c.unread) { x.beginPath(); x.arc(LW - 20, Y + 35, 15, 0, 7); x.fillStyle = '#30d158'; x.fill(); ui.text(x, String(c.unread), LW - 20, Y + 36, 15, { align: 'center', weight: 800 }); }
+      });
+      if (CH.chats.length > per) { P.button('pp', 40, H - 70, 90, 44, '', function () { w.st.page = Math.max(0, page - 1); }, { lucide: 'arrow-left' }); P.button('pn', 140, H - 70, 90, 44, '', function () { w.st.page = Math.min(Math.ceil(CH.chats.length / per) - 1, page + 1); }, { lucide: 'arrow-right' }); }
+      P.button('out', LW - 140, H - 70, 120, 44, 'Sair', function () { api('POST', '/api/logout'); CH.st.token = ''; chSave(); if (CH.ws) CH.ws.close(); }, { px: 17 });
+      var RX = LW + 40, RW = W - RX - 20;
+      if (w.st.new) {
+        ui.text(x, w.st.new === 'dm' ? 'Nova conversa' : 'Novo grupo', RX, 58, 28, { weight: 800 });
+        if (w.st.new === 'group') field(P, x, w, 'gname', RX, 100, RW, 56, 'Nome do grupo');
+        field(P, x, w, 'target', RX, w.st.new === 'group' ? 172 : 100, RW, 56, w.st.new === 'dm' ? 'username do contato' : 'usernames separados por vírgula');
+        P.button('mk', RX, 260, 260, 60, 'Criar', function () {
+          var p = w.st.new === 'dm' ? api('POST', '/api/chats/dm', { username: (w.st.target || '').trim() }) : api('POST', '/api/chats/group', { name: w.st.gname, members: (w.st.target || '').split(',').map(function (s) { return s.trim(); }) });
+          p.then(function (c) { w.st.new = null; R.os.closeKeyboard(w); chLoad().then(function () { chOpen(c.id); }); }, function (e) { R.ui.toast(e.message); });
+        }, { fill: ui.ACCENT, fillHover: ui.ACCENT_H });
+        P.button('cx', RX + 280, 260, 200, 60, 'Cancelar', function () { w.st.new = null; R.os.closeKeyboard(w); });
+        return;
+      }
+      var c = CH.chats.filter(function (q) { return q.id === CH.cur; })[0];
+      if (!c) { ui.text(x, 'Crie uma conversa com o botão acima ↖', RX, 120, 22, { color: 'rgba(255,255,255,0.6)' }); return; }
+      ui.text(x, c.name, RX, 50, 28, { weight: 800, maxW: RW - 220 });
+      var ty = CH.typing[c.id];
+      ui.text(x, ty && Date.now() - ty.t < 3000 ? ty.u + ' está digitando…' : c.type === 'group' ? c.members.length + ' membros' : (c.members.some(function (m) { return m.online && (!CH.st.me || m.username !== CH.st.me.username); }) ? 'online' : 'offline'), RX, 84, 17, { color: '#c9a2ff' });
+      // mensagens (de baixo para cima)
+      var list = (CH.msgs[c.id] || []).slice(-8), y = H - 170, meU = CH.st.me && CH.st.me.username;
+      for (var i = list.length - 1; i >= 0 && y > 110; i--) {
+        var m = list[i], mine = m.from === meU, bw = Math.min(RW * 0.7, 40 + (m.text || '').length * 11), bh = m.image ? 190 : 56;
+        if (m.image) bw = 240;
+        y -= bh + 10; if (y < 100) break;
+        var bx = mine ? RX + RW - bw : RX;
+        ui.roundRect(x, bx, y, bw, bh, 18); x.fillStyle = mine ? 'rgba(138,60,240,0.85)' : 'rgba(255,255,255,0.12)'; x.fill();
+        if (c.type === 'group' && !mine) ui.text(x, m.from, bx + 14, y + 14, 13, { color: '#c9a2ff', weight: 700 });
+        if (m.image) { var im = chImg(m.image); if (im.complete && im.naturalWidth) { x.save(); ui.roundRect(x, bx + 8, y + 24, bw - 16, bh - 32, 12); x.clip(); x.drawImage(im, bx + 8, y + 24, bw - 16, bh - 32); x.restore(); } }
+        else ui.text(x, m.text, bx + 16, y + bh / 2 + 4, 19, { maxW: bw - 30 });
+      }
+      // respostas rápidas + campo + enviar captura
+      ['👍', '😂', 'Oi!', 'Já vou!', '❤️'].forEach(function (q, k) { P.button('q' + k, RX + k * 92, H - 150, 84, 44, q, function () { chSend(q); }, { px: 20 }); });
+      field(P, x, w, 'msg', RX, H - 92, RW - 230, 64, 'Mensagem…', false, function () { chSend(w.st.msg); w.st.msg = ''; P.dirty = true; });
+      P.button('send', RX + RW - 220, H - 92, 100, 64, '', function () { chSend(w.st.msg); w.st.msg = ''; }, { lucide: 'arrow-right', fill: ui.ACCENT, fillHover: ui.ACCENT_H });
+      P.button('pic', RX + RW - 110, H - 92, 100, 64, '', function () { w.st.pick = !w.st.pick; }, { lucide: 'image', active: w.st.pick });
+      if (w.st.pick) {
+        var shots = R.capture.list().slice(0, 4);
+        ui.card(x, RX, H - 330, RW, 170, 20);
+        if (!shots.length) ui.text(x, 'Tire uma captura (central de controle) para enviar', RX + 20, H - 245, 18, { color: 'rgba(255,255,255,0.7)' });
+        shots.forEach(function (sh, k) {
+          var tw = (RW - 50) / 4, im = new Image(); im.src = sh.src;
+          if (im.complete) x.drawImage(im, RX + 10 + k * (tw + 10), H - 315, tw, tw * 0.62);
+          P.area('sh' + k, RX + 10 + k * (tw + 10), H - 315, tw, tw * 0.62, function () { chSendShot(sh.src); w.st.pick = false; });
+        });
+      }
+    }
+  });
+
   webApp('facebook', 'Facebook', 'facebook', 'https://m.facebook.com');
   webApp('instagram', 'Instagram', 'instagram', 'https://www.instagram.com');
   webApp('whatsapp', 'WhatsApp', 'whatsapp', 'https://web.whatsapp.com');
 
   // ordem do Início
-  var order = ['store', 'browser', 'cloudplay', 'tv', 'gallery', 'camera', 'clock', 'calendar', 'calculator', 'files', 'messenger', 'remote', 'settings', 'help', 'facebook', 'instagram', 'whatsapp'];
+  var order = ['store', 'chat', 'browser', 'cloudplay', 'tv', 'gallery', 'camera', 'clock', 'calendar', 'calculator', 'files', 'messenger', 'remote', 'settings', 'help', 'facebook', 'instagram', 'whatsapp'];
   apps.sort(function (a, b) { return order.indexOf(a.id) - order.indexOf(b.id); });
 })();

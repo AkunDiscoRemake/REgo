@@ -1,0 +1,12 @@
+<!doctype html><html><body style="margin:0"><canvas id="c"></canvas>
+<script src="../../js/vendor/ort/ort.all.min.js"></script><script src="../../js/core/handcore.js"></script>
+<script>
+var img=new Image();img.onload=function(){var c=document.getElementById('c');c.width=img.width;c.height=img.height;var x=c.getContext('2d');x.drawImage(img,0,0);
+ var eng=location.hash.slice(1)||'cpu';
+ HandCore.init({engine:eng,maxHands:2,detEvery:1,detConf:0.3,poseConf:0.1,modelBase:'../../assets/ml/',wasmPaths:'../../js/vendor/ort/'}).then(function(r){
+  console.log('EP',JSON.stringify(r)); var t=performance.now();
+  return HandCore.process(img,img.width,img.height).then(function(res){console.log('ms',(performance.now()-t).toFixed(0),'hands',res.hands.length, res.hands.map(h=>h.conf.toFixed(2)).join(','));
+   res.hands.forEach(function(h){x.fillStyle='#f0f';for(var k=0;k<21;k++){x.beginPath();x.arc(h.kp[k*2],h.kp[k*2+1],4,0,7);x.fill();}});document.title='done';});
+ }).catch(function(e){console.log('ERR',e.message);document.title='done';});};
+img.src='hand.jpg';
+</script></body></html>

@@ -4,33 +4,44 @@
   var R = window.REGO, THREE = window.THREE, M = R.models, C = window.CANNON;
 
   var ITEMS = [
-    ['box', '📦', 'Caixa'], ['ball', '⚽', 'Bola'], ['barrel', '🛢', 'Barril'], ['plank', '🪵', 'Prancha'],
-    ['tnt', '🧨', 'TNT'], ['dummy', '🧍', 'Boneco'], ['tower', '🏗', 'Torre'], ['domino', '🁢', 'Dominós']
+    ['box', '📦', 'Caixa'], ['barrel', '☢', 'Tambor'], ['tank', '🧯', 'Botijão'], ['tv', '📺', 'TV'], ['chair', '🪑', 'Cadeira'],
+    ['tyre', '⭕', 'Pneu'], ['ball', '⚽', 'Bola'], ['tnt', '🧨', 'TNT'], ['dummy', '🧍', 'Boneco'], ['tower', '🏗', 'Torre'], ['domino', '🁢', 'Dominós'], ['gnome', '🎅', 'Gnomo']
   ];
-  var TOOLS = [['grab', '✊', 'Puxar'], ['spawn', '✨', 'Criar'], ['gun', '🔫', 'Arma'], ['push', '💨', 'Empurrar'], ['freeze', '❄', 'Congelar'], ['del', '🗑', 'Apagar']];
+  var TOOLS = [['grab', '✊', 'Puxar'], ['spawn', '✨', 'Criar'], ['gun', '🔫', 'Pistola'], ['hammer', '🔨', 'Marreta'], ['push', '💨', 'Empurrar'], ['freeze', '❄', 'Congelar'], ['del', '🗑', 'Apagar']];
+  // modelo CC0 com corpo físico aproximado pela caixa do modelo
+  var REAL = { box: ['wooden_crate_01', 0.55, 'box', 6], barrel: ['Barrel_01', 0.9, 'cyl', 14], tank: ['propane_tank', 0.75, 'cyl', 8], tv: ['Television_01', 0.7, 'box', 9],
+    chair: ['plastic_monobloc_chair_01', 0.85, 'box', 3], tyre: ['old_tyre', 0.65, 'cyl', 7], gnome: ['garden_gnome', 0.45, 'box', 2], ball: ['football', 0.22, 'sphere', 0.45] };
 
   function build(g, opts) {
     opts = opts || {};
-    g.env({ sky: opts.sky || 'day', ground: '#9aa3ad', grid: 1, size: 40, light: { hemi: 0.85, dir: 0.75 } });
     var ph = g.phys({ friction: 0.4, restitution: 0.2, iterations: 8 });
     var objs = []; // meshes clicáveis
-    var wallMat = R.mat.lambert('#c9d0d8');
-    // paredes do laboratório
-    [[0, -15, 30, 0.4], [0, 15, 30, 0.4], [-15, 0, 0.4, 30], [15, 0, 0.4, 30]].forEach(function (w) {
-      var m = M.box(w[2], 4, w[3], null, wallMat); m.position.set(w[0], 2, w[1]); ph.box(m, w[2], 4, w[3], 0);
-    });
-    // rampas e plataformas estáticas
-    var ramp = M.box(3, 0.2, 6, '#f2b134'); ramp.position.set(-6, 1, -6); ramp.rotation.x = 0.35; ph.box(ramp, 3, 0.2, 6, 0);
-    var plat = M.box(4, 2, 4, '#5b8def'); plat.position.set(-6, 1, -10.5); ph.box(plat, 4, 2, 4, 0);
-    var stripe = M.box(10, 0.02, 0.3, '#ffd23f'); stripe.position.set(0, 0.011, -3); g.add(stripe);
-    var sign = M.text('SANDBOX LAB', 0.5, { color: '#2b2f3d', size: 80 }); sign.position.set(0, 3, -14.75); g.add(sign);
+    var room, A = R.assets;
+    if (opts.sky === 'space') {
+      g.env({ sky: 'space', ground: '#8d8a84', tex: 'brushed_concrete', light: { hemi: 0.7, dir: 0.6 } });
+      [[0, -15, 30, 0.4], [0, 15, 30, 0.4], [-15, 0, 0.4, 30], [15, 0, 0.4, 30]].forEach(function (w) { var m = M.box(w[2], 1, w[3], '#6b7178'); m.position.set(w[0], 0.5, w[1]); ph.box(m, w[2], 1, w[3], 0); });
+      room = { statics: [] }; g.root.traverse(function (o) { if (o.userData.ground) room.statics.push(o); });
+      for (var mr = 0; mr < 10; mr++) { var rk = A.get('moon_rock_01', { size: 1 + Math.random() * 2 }); if (rk) { var ra = Math.random() * 6.28; rk.position.set(Math.cos(ra) * (17 + Math.random() * 10), 0, Math.sin(ra) * (17 + Math.random() * 10)); g.add(rk); } }
+    } else room = R.LAB.room(g, ph, opts);
+    var decal = R.LAB.decals(g);
+    // rampa e plataforma de testes (metal com faixa de perigo)
+    var hzm = new THREE.MeshLambertMaterial({ map: R.LAB.hazardTex() });
+    var ramp = M.box(3, 0.2, 6, null, R.mat.lambert('#6b7178')); ramp.position.set(-6, 1, -6); ramp.rotation.x = 0.35; ph.box(ramp, 3, 0.2, 6, 0); room.statics.push(ramp);
+    var plat = M.box(4, 2, 4, null, hzm); plat.position.set(-6, 1, -10.5); ph.box(plat, 4, 2, 4, 0); room.statics.push(plat);
 
     var st = { tool: 'grab', item: 'box', page: 0 };
     var held = {}; // por ponteiro
 
     function addObj(mesh, body, type) { mesh.userData.type = type; objs.push(mesh); body.userData = { mesh: mesh, type: type }; return mesh; }
     function spawn(type, pos) {
-      var m, b, col = new THREE.Color().setHSL(Math.random(), 0.6, 0.55).getStyle();
+      var m, b, col = new THREE.Color().setHSL(Math.random(), 0.6, 0.55).getStyle(), rl = REAL[type], real = rl && R.assets.get(rl[0], { size: rl[1], base: false });
+      if (real) {
+        var fs = real.userData.fitSize; m = real; m.position.copy(pos); if (type === 'barrel') m.userData.rad = true;
+        b = rl[2] === 'sphere' ? ph.sphere(m, fs.x / 2, rl[3]) : rl[2] === 'cyl' ? ph.cylinder(m, Math.max(fs.x, fs.z) / 2, fs.y, rl[3], 10) : ph.box(m, fs.x, fs.y, fs.z, rl[3]);
+        if (type === 'ball') b.material = bouncy;
+        if (type === 'barrel') { var rs = new THREE.Mesh(new THREE.CircleBufferGeometry(fs.y * 0.18, 24), new THREE.MeshLambertMaterial({ map: R.LAB.radTex() })); rs.position.set(0, 0, Math.max(fs.x, fs.z) / 2 + 0.01); m.add(rs); m.traverse(function (o) { if (o.isMesh && o !== rs) { o.material = o.material.clone(); o.material.color.set('#e8c020'); } }); }
+        addObj(m, b, type); return b;
+      }
       if (type === 'box') { m = M.box(0.4, 0.4, 0.4, col); m.position.copy(pos); b = ph.box(m, 0.4, 0.4, 0.4, 3); }
       else if (type === 'ball') { m = M.sphere(0.2, col, 14); m.position.copy(pos); b = ph.sphere(m, 0.2, 1.5); b.material = bouncy; }
       else if (type === 'barrel') { m = M.cyl(0.25, 0.25, 0.7, '#2d6b4a', 12); m.position.copy(pos); b = ph.cylinder(m, 0.25, 0.7, 5, 10); }
@@ -51,9 +62,10 @@
 
     // boneco ragdoll de blocos (constraints ponto-a-ponto)
     function dummy(pos) {
-      var parts = {}, skin = '#f2c94c', shirt = new THREE.Color().setHSL(Math.random(), 0.6, 0.5).getStyle();
+      var parts = {}, skin = '#e3b23c', shirt = '#d9a52a';
       function part(name, w, h, d, x, y, z, c, mass) {
-        var m = M.box(w, h, d, c); m.position.set(pos.x + x, pos.y + y, pos.z + z);
+        var m = M.box(w, h, d, c); m.position.set(pos.x + x, pos.y + y, pos.z + z); m.userData.flesh = true;
+        if (name === 'torso' || name === 'head') { var mk = new THREE.Mesh(new THREE.CircleBufferGeometry(Math.min(w, h) * 0.22, 20), new THREE.MeshBasicMaterial({ map: dummyMark() })); mk.position.z = d / 2 + 0.002; m.add(mk); }
         var b = ph.box(m, w, h, d, mass); b.angularDamping = 0.6; b.linearDamping = 0.1; addObj(m, b, 'dummy'); parts[name] = b; return b;
       }
       part('torso', 0.4, 0.5, 0.22, 0, 1.15, 0, shirt, 6);
@@ -66,6 +78,23 @@
       join('torso', 'll', [-0.11, -0.26, 0], [0, 0.3, 0]); join('torso', 'rl', [0.11, -0.26, 0], [0, 0.3, 0]);
     }
 
+    var markTex = null;
+    function dummyMark() { if (markTex) return markTex; var c = document.createElement('canvas'); c.width = c.height = 64; var x = c.getContext('2d'); x.fillStyle = '#ffd400'; x.fillRect(0, 0, 64, 64); x.fillStyle = '#111'; x.beginPath(); x.moveTo(32, 32); x.arc(32, 32, 30, 0, Math.PI / 2); x.closePath(); x.fill(); x.beginPath(); x.moveTo(32, 32); x.arc(32, 32, 30, Math.PI, Math.PI * 1.5); x.closePath(); x.fill(); return (markTex = new THREE.CanvasTexture(c)); }
+    // ferimento: spray + manchas no chão/paredes + mancha no próprio boneco
+    function bleed(hit, dir, power) {
+      R.LAB.bloodSpray(g, hit.point, dir.clone().multiplyScalar(-0.3).add(new THREE.Vector3(0, 0.3, 0)).add(dir), 10 + Math.round(power * 10), decal, room.statics);
+      decal('blood', hit, 0.12, hit.object);
+      var far = new THREE.Raycaster(hit.point.clone().addScaledVector(dir, 0.3), dir, 0, 4).intersectObjects(room.statics, false)[0];
+      if (far) decal('blood', far, 0.35 + power * 0.3);
+      R.sfx.play('hit');
+    }
+    // pistola e marreta na mão quando a ferramenta está ativa
+    var heldTool = g.holdAll(function () {
+      var gr = new THREE.Group(), pist = R.assets.holdable('service_pistol', 0.21), ham = R.assets.holdable('sledgehammer_01', 0.9);
+      if (pist) { pist.userData.tool = 'gun'; gr.add(pist); } if (ham) { ham.userData.tool = 'hammer'; gr.add(ham); }
+      return gr;
+    });
+    var flash = new THREE.PointLight('#ffcf80', 0, 6); g.add(flash);
     function explode(body) {
       var c = body.position.clone();
       g.burst(new THREE.Vector3(c.x, c.y, c.z), '#ff8a00', 30, 6); g.burst(new THREE.Vector3(c.x, c.y, c.z), '#ffd23f', 20, 4);
@@ -151,11 +180,21 @@
         spawn(st.item, at); R.sfx.play('pop');
       } else if (st.tool === 'gun') {
         R.sfx.play('shoot');
-        if (body) {
-          if (body.userData.type === 'tnt') return explode(body);
-          body.wakeUp(); body.applyImpulse(new C.Vec3(p.dir.x * 12, p.dir.y * 12 + 2, p.dir.z * 12), new C.Vec3(hit.point.x, hit.point.y, hit.point.z));
-          g.burst(hit.point, '#ffee88', 6, 2);
+        var muzzle = p.tip(0.22); flash.position.copy(muzzle); flash.intensity = 3; g.after(0.05, function () { flash.intensity = 0; });
+        var gh2 = g.heldBy(p, heldTool); if (gh2) { gh2.rotation.x = 0.25; g.after(0.08, function () { gh2.rotation.x = 0; }); }
+        // cápsula ejetada
+        var shell = M.cyl(0.005, 0.005, 0.02, '#c8a24a', 6); shell.position.copy(p.tip(0.1)); var sb = ph.cylinder(shell, 0.005, 0.02, 0.01, 6);
+        sb.velocity.set(p.dir.z * 1.5, 1.5, -p.dir.x * 1.5); g.after(4, function () { ph.remove(sb); });
+        var allHit = p.ray.intersectObjects(objs.concat(room.statics), false)[0];
+        if (allHit) {
+          var hb = ph.bodyOf(allHit.object);
+          if (hb && hb.userData && hb.userData.type === 'tnt') return explode(hb);
+          if (hb && hb.mass > 0) { hb.wakeUp(); hb.applyImpulse(new C.Vec3(p.dir.x * 14, p.dir.y * 14 + 1, p.dir.z * 14), new C.Vec3(allHit.point.x, allHit.point.y, allHit.point.z)); }
+          if (allHit.object.userData.flesh) bleed(allHit, p.dir, 0.6);
+          else { decal('hole', allHit, 0.035, hb ? allHit.object : null); g.burst(allHit.point, '#ffd08a', 5, 2.5); }
         }
+      } else if (st.tool === 'hammer') {
+        // marreta: o golpe é detectado no update (balanço do pulso)
       } else if (st.tool === 'push' && body) {
         body.wakeUp(); body.velocity.set(body.velocity.x + p.dir.x * 9, body.velocity.y + 4, body.velocity.z + p.dir.z * 9); R.sfx.play('whoosh');
       } else if (st.tool === 'freeze' && body) {
@@ -168,7 +207,25 @@
       var h = held[p.id]; if (!h) return; delete held[p.id];
       if (h.body.mass > 0) { h.body.velocity.set(h.body.velocity.x + p.vel.x * 1.6, h.body.velocity.y + p.vel.y * 1.6, h.body.velocity.z + p.vel.z * 1.6); }
     });
+    var hamA = new THREE.Vector3(), hamB = new THREE.Vector3(), hamLine = new THREE.Line3(), hamCd = 0;
     g.on('update', function (dt) {
+      // mostra a ferramenta certa na mão
+      heldTool.forEach(function (h) { h.children.forEach(function (c) { c.visible = c.userData.tool === st.tool; }); });
+      hamCd -= dt;
+      if (st.tool === 'hammer' && hamCd <= 0) R.input.pointers.forEach(function (p) {
+        if (p.angVel < 3) return;
+        p.obj.localToWorld(hamA.set(0, 0, -0.75 * R.input.giant)); p.obj.localToWorld(hamB.set(0, 0, -0.95 * R.input.giant)); hamLine.set(hamA, hamB);
+        for (var i = 0; i < objs.length; i++) {
+          var o = objs[i], b = ph.bodyOf(o); if (!b || b.mass === 0) continue;
+          var cp = hamLine.closestPointToPoint(o.getWorldPosition(new THREE.Vector3()), true, new THREE.Vector3());
+          if (cp.distanceTo(o.getWorldPosition(new THREE.Vector3())) < 0.35) {
+            var f = Math.min(40, p.angVel * 4); b.wakeUp(); b.applyImpulse(new C.Vec3(p.vel.x * f * 0.2 + p.dir.x * f, f * 0.25, p.vel.z * f * 0.2 + p.dir.z * f), b.position);
+            if (o.userData.flesh) bleed({ point: cp, object: o, face: { normal: p.dir.clone().negate() } }, p.dir, 1); else { R.sfx.play('thud'); g.burst(cp, '#ccc', 6, 2); }
+            if (b.userData.type === 'tnt') explode(b);
+            hamCd = 0.25; break;
+          }
+        }
+      });
       placeBelt();
       var pad = R.input.pad;
       for (var id in held) {
@@ -191,14 +248,15 @@
     });
     g.on('pad', function (pad) { /* toques no touchpad: andar (locomoção) */ });
     g.hud({ y: 3.4, z: -6, info: '' });
+    spawn('barrel', new THREE.Vector3(-2.5, 0.6, -6)); spawn('barrel', new THREE.Vector3(-1.8, 0.6, -6.6)); spawn('tank', new THREE.Vector3(4.5, 0.5, -5)); spawn('tv', new THREE.Vector3(3.5, 1.4, -3.2));
     g.hudState.label = false;
   }
 
-  R.game({ id: 'sandbox', name: 'Sandbox Lab', cat: 'Física', featured: true, c1: '#f2b134', c2: '#d9480f', glyph: '🧪',
-    desc: 'Laboratório de física: puxe objetos à distância, arremesse ragdolls, monte dominós e exploda TNT. Salve suas criações.',
+  R.game({ id: 'sandbox', assets: { models: ['service_pistol', 'sledgehammer_01', 'wooden_crate_01', 'cardboard_box_01', 'Barrel_01', 'propane_tank', 'Television_01', 'plastic_monobloc_chair_01', 'old_tyre', 'garden_gnome', 'football', 'WoodenTable_01'] }, name: 'Sandbox Lab', cat: 'Física', featured: true, c1: '#f2b134', c2: '#d9480f', glyph: '🧪',
+    desc: 'Laboratório industrial ultra realista (setor nuclear): pistola com recuo e cápsulas, marreta, bonecos de teste com sangue, tambores radioativos, TNT em cadeia e física real.',
     controls: 'Olhe para baixo: cinto de ferramentas. Gatilho usa a ferramenta. Segurando algo, touchpad cima/baixo aproxima/afasta.',
     build: function (g) { build(g); } });
-  R.game({ id: 'sandbox-moon', name: 'Sandbox Lunar', cat: 'Física', c1: '#5d5f73', c2: '#1b1c2b', glyph: '🌑',
+  R.game({ id: 'sandbox-moon', assets: { models: ['service_pistol', 'sledgehammer_01', 'wooden_crate_01', 'Barrel_01', 'propane_tank', 'old_tyre', 'football', 'moon_rock_01'] }, name: 'Sandbox Lunar', cat: 'Física', c1: '#5d5f73', c2: '#1b1c2b', glyph: '🌑',
     desc: 'O mesmo laboratório numa base lunar — gravidade baixa ativada automaticamente.',
     controls: 'Igual ao Sandbox Lab. Ative Baixa gravidade no menu para o efeito lunar completo.',
     build: function (g) { R.mods.lowGrav = true; g.gScale = 0.3; build(g, { sky: 'space' }); } });

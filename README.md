@@ -1,133 +1,100 @@
-# REgo OS — revivendo o Oculus Go na web
+<p align="center"><img src="assets/brand/logo_512.png" width="320" alt="Wpollo VR"></p>
 
-Um "sistema operacional" WebXR feito para o **Oculus Go**: abre no navegador, entra em VR com um clique e traz
-**62 jogos**, multitarefa, janelas flutuantes estilo **visionOS** e um menu de pausa dentro dos jogos.
+# Wpollo VR
 
-> Ícones dos apps: remakes feitos pelo autor do projeto (em `assets/icons/`). **Projeto não afiliado à Meta,
-> ao Roblox ou a qualquer marca citada.** Facebook/Instagram/WhatsApp são apenas atalhos para os sites oficiais.
+VR para **Oculus Go** (site WebXR) e para **celular no VR Box** (site ou APK). Inclui 62 jogos, ambientes
+fotográficos, hand tracking por câmera, realidade mista, Joy-Con, multitarefa e um mensageiro próprio.
 
-## Como usar
+> O logo é do autor do projeto. Não há afiliação com Meta, Roblox, WhatsApp ou qualquer marca citada.
 
-1. Abra o site publicado no **Oculus Browser** do Go (ou em qualquer navegador com WebXR).
-2. Toque em **🥽 Entrar no VR**.
-3. Sem óculos também funciona (modo 2D): mouse esquerdo = gatilho, botão direito arrasta para olhar,
-   WASD = touchpad, Q/E = girar, Esc = menu.
+## Duas versões
 
-### Controle do Go
+| | **Site** | **APK** |
+|---|---|---|
+| Para | Oculus Go (Oculus Browser), Quest, PC, celular | celular Android num VR Box |
+| Como | GitHub Pages: abra o link e toque em **Entrar no VR** | instale `WpolloVR.apk` (gerado pelo Actions, veja abaixo) |
+| Hand tracking | ONNX Runtime Web: WebNN NPU > WebGPU > CPU | **nativo: ONNX Runtime Android + NNAPI** (usa a NPU/DSP) |
+| 6DoF | ARCore pelo WebXR (Chrome Android) | — (o WebView do Android não tem WebXR); use o site no Chrome |
+| Offline | depois da 1ª visita (service worker) | sempre (tudo dentro do APK) |
 
-| Ação | Como |
-|---|---|
-| Ação principal / clicar | Gatilho |
-| Andar | Clicar na parte de cima do touchpad (baixo = ré) |
-| Girar (snap turn) | Clicar nas bordas esquerda/direita do touchpad |
-| Trocar página | Deslizar no touchpad |
-| Menu do jogo | **Segurar o centro do touchpad** ou botão **Voltar** |
+## Modo VR Box (celular)
 
-O botão Voltar do Go encerra o modo imersivo no Oculus Browser. O REgo trata isso como "abrir o menu":
-o jogo fica pausado e um toque em **Entrar no VR** volta exatamente de onde parou.
+A **única tela 2D** do Wpollo VR é a configuração inicial do VR Box. Depois disso, tudo acontece em 3D.
 
-## O que tem
+- **Cabeça:** 3DoF pelo sensor de orientação a 120 Hz, com predição de movimento ajustável. Opção de **6DoF via
+  ARCore** para andar de verdade.
+- **Render estéreo** lado a lado com distorção de lente opcional (barril). Distância entre os olhos, campo de
+  visão e resolução são ajustáveis.
+- **Realidade mista:** a câmera traseira vira o fundo. O céu e o chão virtuais somem e os objetos ficam no seu
+  ambiente real.
+- **Lanterna:** liga e desliga pela central de controle (torch da câmera; ponte nativa no APK).
+- **Sem controle:** olhe para um botão por 1,3 s para clicar (o cursor cresce), ou toque na tela (botão do VR Box).
+- **Joy-Con e controles Bluetooth (só botões, sem giroscópio):**
+  - R/ZR/A/B = gatilho da mão direita, L/ZL = gatilho da esquerda.
+  - +/−/Home = menu; analógico ou setas = andar e girar.
+  - Com um controle conectado, a pinça não clica. A mão rastreada continua dando a posição e a direção do ponteiro.
 
-- **Início estilo visionOS**: ícones circulares flutuando, barra de abas lateral em vidro, barra de status,
-  4 ambientes (lago ao pôr do sol, floresta à noite, espaço, praia).
-- **Multitarefa**: até 3 jogos pausados na memória ao mesmo tempo (aba ⧉ Multitarefa) e até 3 janelas de apps
-  abertas ao seu redor — arraste a barrinha embaixo da janela para movê-la.
-- **Menu de pausa dentro dos jogos** (abas Jogo / Modificadores / Ajustes / Ajuda):
-  Continuar, Reiniciar, **Sair do jogo**, **Braço duplo** (espelha seu controle para o outro lado e cria uma
-  segunda mão que também atira/pega/bate), Início sem fechar o jogo, Recentralizar, Captura de tela, e
-  modificadores: câmera lenta, baixa gravidade, mãos gigantes, modo noite, laser arco-íris, esconder laser,
-  medidor de FPS, mudo.
-- **Apps**: Loja (biblioteca), Navegador WebXR, Cloud Play, TV (cinema gigante), Galeria, Captura, Relógio
-  (cronômetro/timer), Calendário, Calculadora, Arquivos, Mensagens, Área Remota, Configurações, Ajuda,
-  e atalhos web.
-- **Recordes, conquistas e notificações** salvos localmente.
+### Hand tracking (sem MediaPipe)
 
-### Os 62 jogos
+- **Modelos:** RTMDet-nano (detecta mãos) + RTMPose-m hand (21 pontos), ambos da OpenMMLab (Apache-2.0).
+  Foram convertidos para **fp16** (NPU/GPU), **int8** (CPU) e **fp32** (NNAPI no APK).
+- **Otimizações:**
+  - O detector roda só a cada N quadros; entre eles, a caixa da mão é rastreada pelos pontos do quadro anterior.
+  - Só um quadro é processado por vez, e os atrasados são descartados (sem fila = latência mínima).
+  - A inferência roda numa **thread separada** (Worker) ou na principal, à sua escolha.
+- **Aceleradores:** NPU (WebNN no site / NNAPI no APK), GPU (WebGPU) ou CPU (WASM SIMD int8). Se o escolhido
+  não existir no aparelho, o próximo da lista é usado e a tela mostra qual está ativo.
+- **Filtros:** One Euro, Kalman (velocidade constante), média exponencial ou nenhum, todos com predição em ms.
+- **Visual:** luvas sem dedos nos estilos **Clássico** e **Fofinho (peludinho)**, com cor ajustável.
+  São 4 draw calls por mão.
+- **Gestos:** pinça = clicar; pinça longa da mão esquerda = menu.
+- **3D:** a profundidade é estimada pelo tamanho da mão na imagem. O modelo dá pontos 2D, então a profundidade
+  dos dedos é uma aproximação.
 
-- **Ação (14)**: Blocky World, Obby Fácil, Obby Difícil, Torre Infinita, Tiro ao Alvo, Estoura Balões, Defensor Espacial, Noite dos Zumbis, Galeria do Parque, Martelo Maluco, Fatiador de Frutas, Casa Assombrada, Pássaro Saltitante, Quebra-Tijolos
-- **Esporte (13)**: Boliche VR, Boliche Cósmico, Basquete 3 Pontos, Minigolfe, Dardos, Paredão de Pingue-Pongue, Goleiro, Cobrança de Pênalti, Jogo de Argolas, Air Hockey, Home Run Derby, Arqueiro, Tiro ao Prato
-- **Física (4)**: Sandbox Lab, Sandbox Lunar, Canhão vs Castelo, Derruba Latas
-- **Puzzle (12)**: Sequência de Cores, Jogo da Memória, Jogo da Velha, Ligue 4, Apaga as Luzes, Quebra-cabeça 15, Campo Minado, Labirinto Inclinável, Quiz Relâmpago, Teste de Reflexo, Empilha Blocos, Cobrinha no Paredão
-- **Música (5)**: Piano Gigante, Bateria no Ritmo, Teremim Cósmico, Beat Maker, Neon Beats
-- **Corrida (5)**: Kart Turbo, Corredor Infinito, Voo Livre, Esqui Slalom, Túnel Neon
-- **Relax (9)**: Pintura 3D, Construtor de Blocos, Show de Fogos, Aquário Zen, Sistema Solar, Respiração Guiada, Montanha-Russa, Pescaria no Lago, Bolhas de Sabão
+## Interface
 
-Destaques:
-- **Boliche VR** — física real (cannon.js), 10 frames com pontuação oficial de strike/spare.
-- **Sandbox Lab** (inspirado em BoneLab) — puxar objetos à distância, arremessar, ragdolls de blocos com
-  articulações, TNT em cadeia, dominós, torre, congelar, apagar, salvar/carregar criações.
-- **Blocky World** — mundo de blocos com hangout, NPCs que andam/pulam/conversam, placar de jogadores,
-  torre para escalar e portais para obbies (checkpoints, blocos mortais, gelo, esteiras, trampolins).
-- **Labirinto Inclinável** — usa a rotação do controle 3DoF para inclinar o tabuleiro.
+O Início tem três painéis em volta de você, no estilo da referência:
+- **Menu lateral** (Início, Biblioteca, Modelos de mãos, Ambiente, Vídeo, Capturas, Ajustes, Sobre).
+- **Conteúdo**, com os "jogados recentemente" e os apps.
+- **Central de controle**, com hora, bateria, Captura, Centralizar, Lanterna, Realidade mista, Mãos, FPS,
+  volume e brilho.
 
-Todos os jogos foram pensados para **um controle 3DoF com gatilho e touchpad**.
+Ícones de linha **Lucide**; cor de destaque no roxo do logo.
 
-### Cloud Play (experiências do Roblox)
+**Ambientes:** fotos 360° reais de salas (apartamento com vista para o mar, sala de estar, lounge clássico) e
+cenários externos. As salas são projetadas numa caixa, então chão e paredes aparecem na profundidade certa em estéreo.
 
-O app **Cloud Play** abre uma experiência do Roblox **no site oficial** a partir do ID (place id). O modelo de URL
-é configurável em *Configurações → Dados* (`{id}` é substituído pelo ID) — o padrão é
-`https://www.roblox.com/games/{id}`. Se você usa outro endereço de jogo pelo navegador, troque o modelo lá.
-Isso é um atalho: o jogo roda no site do Roblox, fora do REgo, e depende do que o navegador do Go suporta.
+## Wpollo Chat
 
-### Navegador WebXR
+Mensageiro próprio: login por **username**, sem número de telefone. Tem conversas 1:1, grupos, envio de imagens
+(capturas do VR), respostas rápidas, "digitando…", online e não lidas, tudo em tempo real.
+O servidor fica em [`server/chat`](server/chat/README.md) e é você quem hospeda.
 
-Lista de experiências WebXR (three.js, A-Frame, Moon Rider, exemplos do W3C), campo de endereço com teclado
-virtual e favoritos. Por limitação da web, um site WebXR só pode rodar em tela cheia (não dentro de outra
-página), então o navegador abre o site e você volta com o Voltar do navegador.
+## Jogos (62)
 
-## Otimizações para o hardware do Go (Snapdragon 821 / Adreno 530)
+- **Destaques:** Boliche VR (física real), **Sandbox Lab** (laboratório industrial no estilo BoneLab), Blocky World,
+  Neon Beats, Kart Turbo, Labirinto Inclinável, Pintura 3D, Construtor de Blocos e outros.
+- **Sandbox Lab:**
+  - Sala de concreto com faixas de perigo, símbolos de radiação, luzes de alerta giratórias, estantes e tambores
+    radioativos.
+  - **Pistola** com clarão, recuo, cápsulas ejetadas e marcas de tiro; **marreta** por balanço do pulso.
+  - Bonecos de teste articulados com **sangue** (jatos que caem e mancham chão, paredes e o próprio boneco).
+  - Ferramentas de puxar à distância, criar objetos reais (CC0), TNT em cadeia, dominós, congelar e apagar.
+- **Modelos e cenários:** objetos reais do Poly Haven (CC0), otimizados para o Go, com mãos (MIT) segurando o
+  controle e céus fotográficos.
 
-- **Zero downloads pesados**: todos os modelos 3D são gerados por código (low-poly, CC0) e todos os sons são
-  sintetizados com WebAudio. Bibliotecas servidas localmente (sem CDN) + **service worker** com cache:
-  depois da primeira visita o REgo abre instantaneamente e funciona offline.
-- **Fixed foveated rendering** (nível ajustável), **72 Hz** quando disponível, **escala de resolução** ajustável.
-- Materiais **Lambert** (iluminação por vértice), **sem shadow maps** (sombras "blob"), geometrias e materiais em
-  cache compartilhado, física com passo fixo e corpos dormindo.
-- UI em canvas **só redesenha quando muda** (hover/estado) — custo quase zero por frame.
-- Código ES2015 sem sintaxe moderna (`?.`, `??`) para rodar no Chromium antigo do Oculus Browser;
-  **polyfill WebVR→WebXR** carregado só quando o navegador não tem WebXR.
+## Publicar
 
-## Publicar no GitHub Pages
+- **Site:** em Settings → Pages → Source escolha **GitHub Actions** (workflow `pages.yml`).
+- **APK:** o workflow `apk.yml` compila a cada push e deixa o arquivo em **Actions → execução → Artifacts**.
+  Ele **não** publica em Releases.
+- Para compilar localmente: `cd android && gradle assembleRelease` (JDK 17 + Android SDK 34).
 
-O site é estático (sem build). Duas opções:
+## Ferramentas
 
-- **Settings → Pages → Build and deployment → Source: GitHub Actions** — o workflow
-  `.github/workflows/pages.yml` publica a cada push.
-- Ou **Source: Deploy from a branch**, escolha o branch e a pasta `/ (root)` (o arquivo `.nojekyll` já está aqui).
+- `tools/build-assets.mjs`: baixa e otimiza modelos, texturas e céus CC0. Rode com `cd tools && npm i && node build-assets.mjs`.
+- `tools/dev/`: páginas de teste (pose das mãos, hand tracking com imagem).
 
-WebXR exige HTTPS, que o GitHub Pages já fornece.
+## Licenças
 
-## Trocar os ícones
-
-Os ícones em `assets/icons/` foram recortados da imagem de referência. Para usar os PNGs originais em alta
-resolução, substitua os arquivos mantendo os nomes (`browser_bg.png`, `browser_fg.png`, …). O REgo compõe
-`_bg` + `_fg` num ícone circular automaticamente.
-
-## Estrutura
-
-```
-index.html            entrada
-js/core/              engine, input (controle 3DoF + braço duplo), UI de vidro, áudio, física, modelos
-js/os/                shell (Início, janelas, multitarefa, menu de pausa), apps, kit de jogos, captura
-js/games/             62 jogos
-assets/icons/         ícones dos apps
-```
-
-Adicionar um jogo:
-
-```js
-REGO.game({ id: 'meujogo', name: 'Meu Jogo', cat: 'Ação', glyph: '🎮', desc: '...', controls: '...',
-  build: function (g) {
-    g.env({ sky: 'day', ground: '#5aa864' });
-    g.on('press', function (p) { /* gatilho */ });
-    g.on('update', function (dt) { /* por frame */ });
-    g.hud(); g.round(60);
-  } });
-```
-
-## Créditos e licenças de terceiros
-
-- [three.js](https://threejs.org) r128 — MIT
-- [cannon.js](https://github.com/schteppe/cannon.js) 0.6.2 — MIT
-- [webxr-polyfill](https://github.com/immersive-web/webxr-polyfill) 2.0.3 — Apache-2.0
-- Modelos e sons: gerados por código neste projeto, domínio público (CC0).
+Veja [`assets/LICENSES.md`](assets/LICENSES.md) e [`assets/CREDITS.json`](assets/CREDITS.json).

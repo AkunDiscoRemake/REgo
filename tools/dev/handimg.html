@@ -1,0 +1,8 @@
+<!doctype html><html><body style="margin:0;background:#888"><canvas id="c" width="640" height="480"></canvas>
+<script src="../../js/vendor/three.min.js"></script><script src="../../js/vendor/GLTFLoader.js"></script>
+<script>
+var r=new THREE.WebGLRenderer({canvas:document.getElementById('c')});var sc=new THREE.Scene();sc.background=new THREE.Color('#6b7280');
+sc.add(new THREE.HemisphereLight('#fff','#555',1.1));var d=new THREE.DirectionalLight('#fff',.7);d.position.set(1,1,2);sc.add(d);
+new THREE.GLTFLoader().load('../../assets/models/hand_right.glb',function(g){g.scene.traverse(function(o){if(o.isMesh)o.material=new THREE.MeshLambertMaterial({color:'#d9a383',skinning:true});});
+ sc.add(g.scene);var cam=new THREE.PerspectiveCamera(40,640/480,0.01,10);cam.position.set(0.35,-0.03,0.0);cam.lookAt(0.03,-0.03,0.0);r.render(sc,cam);document.title='done';});
+</script></body></html>

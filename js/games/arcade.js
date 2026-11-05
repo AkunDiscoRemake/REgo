@@ -258,10 +258,10 @@
         h.position.set((c - 1) * 0.7, 0.805, -0.9 - r * 0.45); g.add(h); holes.push(h.position.clone());
         var m = new THREE.Group(), gn = R.assets.get('garden_gnome', { size: 0.42 });
         var helmet = M.sphere(0.14, '#ffd23f', 10); helmet.scale.y = 0.6;
-        if (gn) { gn.position.y = -0.17; m.add(gn); helmet.position.y = 0.27; m.add(helmet); }
+        if (gn) { gn.position.y = -0.17; m.add(gn); helmet.scale.set(0.6, 0.4, 0.6); helmet.position.y = 0.25; m.add(helmet); m.userData.real = true; }
         else { var body = M.cyl(0.13, 0.15, 0.3, '#8a5a3c', 10); var nose = M.sphere(0.04, '#ff7aa8', 6); nose.position.set(0, 0.06, 0.13);
-          var e1 = M.sphere(0.025, '#111', 6); e1.position.set(-0.05, 0.1, 0.11); var e2 = e1.clone(); e2.position.x = 0.05; helmet.position.y = 0.15; m.add(body, nose, e1, e2, helmet); } m.userData = { t: 'mole', up: 0, state: 'down', timer: 0, helmet: helmet, hp: 1 };
-        m.position.copy(h.position); m.position.y = 0.6; g.add(m); moles.push(m);
+          var e1 = M.sphere(0.025, '#111', 6); e1.position.set(-0.05, 0.1, 0.11); var e2 = e1.clone(); e2.position.x = 0.05; helmet.position.y = 0.15; m.add(body, nose, e1, e2, helmet); } m.userData = { t: 'mole', real: !!gn, up: 0, state: 'down', timer: 0, helmet: helmet, hp: 1 };
+        m.position.copy(h.position); m.position.y = gn ? 0.35 : 0.6; g.add(m); moles.push(m);
       }
       var hammers = g.holdAll(function () { var real = R.assets.holdable('wooden_hammer_01', 0.45); if (real) return real; var hm = new THREE.Group(); var hd = M.cyl(0.07, 0.07, 0.2, '#c0392b', 10); hd.rotation.z = Math.PI / 2; hd.position.z = -0.32; var hn = M.cyl(0.015, 0.015, 0.32, '#7a5232', 6); hn.rotation.x = Math.PI / 2; hn.position.z = -0.16; hm.add(hd, hn); return hm; });
       g.on('press', function (p) {
@@ -278,7 +278,7 @@
           var m = moles[i], u = m.userData; u.timer -= dt;
           if (u.state === 'down' && u.timer < 0 && Math.random() < dt * (0.25 + g.score / 120)) { u.state = 'up'; u.timer = 1.4 - Math.min(0.8, g.score / 80); u.hp = Math.random() < 0.25 ? 2 : 1; u.helmet.visible = u.hp === 2; }
           else if ((u.state === 'up' || u.state === 'hit') && u.timer < 0) { u.state = 'down'; u.timer = 0.4 + Math.random(); }
-          var target = u.state === 'up' ? 0.95 : 0.6; m.position.y += (target - m.position.y) * Math.min(1, dt * 18);
+          var target = u.state === 'up' ? (u.real ? 0.88 : 0.95) : (u.real ? 0.35 : 0.6); m.position.y += (target - m.position.y) * Math.min(1, dt * 18);
           if (u.state === 'hit') m.scale.y = 0.6; else m.scale.y = 1;
         }
       });
