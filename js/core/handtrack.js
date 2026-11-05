@@ -9,11 +9,11 @@
   'use strict';
   var R = window.REGO, THREE = window.THREE, V3 = THREE.Vector3;
   var DEF = { engine: 'npu', async: true, mrHand: false, filter: 'oneeuro', minCutoff: 1.0, beta: 0.04, kalmanQ: 0.02, kalmanR: 0.4, ema: 0.5, predictMs: 25,
-    camRes: '640x480', detEvery: 8, maxHands: 2, detConf: 0.35, poseConf: 0.25, camFov: 66, handScale: 1.0, camOffsetX: 0.0 };
+    camRes: '640x480', detEvery: 8, maxHands: 2, detConf: 0.35, poseConf: 0.45, camFov: 66, handScale: 1.0, camOffsetX: 0.0 };
   var H = R.handtrack = {};
   // o APK entrega o canal binário assim que a página carrega: guarda já (o motor de mãos carrega depois)
   window.addEventListener('message', function (e) { if (e.data === 'wpnn-port' && e.ports && e.ports[0]) window.__wpnnPort = e.ports[0]; });
-  H.cfg = (function () { var c = R.store.get('handtrack', {}); for (var k in DEF) if (!(k in c)) c[k] = DEF[k]; return c; })();
+  H.cfg = (function () { var c = R.store.get('handtrack', {}); for (var k in DEF) if (!(k in c)) c[k] = DEF[k]; if (c.poseConf < 0.4) c.poseConf = 0.45; if (c.engine === 'webnn' && window.WpolloAndroid) c.engine = 'npu'; return c; })();
   H.save = function () { R.store.set('handtrack', H.cfg); if (worker) worker.postMessage({ type: 'cfg', cfg: workerCfg() }); };
   var run = false, ready = false, stat = 'desligado', worker = null, lastMs = 0, epName = '', video = null, lastT = 0;
   H.supported = function () { return !!(R.vrbox && R.vrbox.active && navigator.mediaDevices); };
@@ -322,7 +322,7 @@
         // APK: NPU de verdade pelo NNAPI (a ponte nativa já roda fora da thread de render)
         return (window.HandCore ? Promise.resolve() : loadScript('js/core/handcore.js')).then(function () {
           mainCore = window.HandCore; return mainCore.initNative(workerCfg());
-        }).then(function (r) { ready = true; epName = r.ep; stat = 'ativo (' + (/nnapi/.test(r.ep) ? 'NPU via NNAPI' : 'CPU nativa') + ')'; R.ui.toast('Mãos: ' + stat, 2); });
+        }).then(function (r) { ready = true; epName = r.ep; stat = 'ativo (' + r.ep + ')'; R.ui.toast('Mãos: ' + stat, 2); });
       }
       if (H.cfg.async && window.Worker && window.OffscreenCanvas) {
         worker = new Worker('js/core/handcore.js');

@@ -18,15 +18,17 @@ android {
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17; coreLibraryDesugaringEnabled true }
     buildFeatures { aidl true; buildConfig false }
     sourceSets { main { assets.srcDirs = ["$buildDir/www-assets"] } }
-    androidResources { noCompress += ['onnx', 'wasm', 'glb', 'jpg', 'png', 'mjs', 'js'] }
+    androidResources { noCompress += ['onnx', 'tflite', 'wasm', 'glb', 'jpg', 'png', 'mjs', 'js'] }
     packagingOptions { jniLibs { useLegacyPackaging = false } }
     lint { checkReleaseBuilds false; abortOnError false }
 }
 
 dependencies {
     implementation 'androidx.webkit:webkit:1.11.0'
-    // inferência nativa das mãos: ONNX Runtime com NNAPI (usa a NPU/DSP do celular quando existe)
-    implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.20.0'
+    // inferência nativa das mãos: TFLite (LiteRT) com delegate NNAPI (NPU), GPU ou XNNPACK
+    implementation 'org.tensorflow:tensorflow-lite:2.16.1'
+    implementation 'org.tensorflow:tensorflow-lite-gpu:2.16.1'
+    implementation 'org.tensorflow:tensorflow-lite-gpu-api:2.16.1'
     // YouTube por código aberto (NewPipeExtractor, GPL-3.0) — só no APK
     implementation 'com.github.TeamNewPipe:NewPipeExtractor:v0.24.8'
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs_nio:2.1.2'
@@ -40,7 +42,7 @@ tasks.register('syncWww', Sync) {
     def root = rootProject.projectDir.parentFile
     from(root) {
         include 'index.html', 'manifest.webmanifest', 'css/**', 'js/**', 'assets/**'
-        // no APK as mãos rodam nativamente (NNAPI): o modelo fp16 e o wasm do WebGPU não são necessários
+        // no APK as mãos rodam nativamente (TFLite + NNAPI): o modelo ONNX fp16 e o wasm do WebGPU não são necessários
         exclude 'assets/ml/hand_pose_fp16.onnx', 'js/vendor/ort/ort-wasm-simd-threaded.jsep.*', 'assets/icons/**'
     }
     from("$root/android/native-models") { into 'assets/ml' }

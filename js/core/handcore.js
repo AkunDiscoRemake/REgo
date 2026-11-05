@@ -56,7 +56,7 @@
     cDet = mk(DET); xDet = cDet.getContext('2d', { willReadFrequently: true });
     cPose = mk(POSE); xPose = cPose.getContext('2d', { willReadFrequently: true });
     return new Promise(function (res, rej) {
-      G.__wpNative = { ready: function (e) { ep = e; res({ ep: e, detEp: e }); }, fail: function (m) { rej(new Error(m)); }, done: function (id, d) { var f = pend[id]; delete pend[id]; if (f) f(d); } };
+      G.__wpNative = { ready: function (e, noDet) { ep = e; C.noDet = !!noDet; res({ ep: e, detEp: noDet ? 'busca pelo modelo de pose' : e }); }, fail: function (m) { rej(new Error(m)); }, done: function (id, d) { var f = pend[id]; delete pend[id]; if (f) f(d); } };
       G.WpolloAndroid.nnInit();
     });
   };
@@ -75,7 +75,29 @@
     }).then(function (d) { det = d.s; return { ep: ep, detEp: d.ep }; });
   };
 
+  // sem detector (TFLite no APK): o próprio modelo de pose varre recortes; sem mão a confiança fica ~0,35, com mão ~0,67
+  var searchI = 0;
+  function searchBoxes(W, H) {
+    var s = Math.min(W, H), c = [
+      { x1: (W - s) / 2, y1: (H - s) / 2, x2: (W + s) / 2, y2: (H + s) / 2 },
+      { x1: 0, y1: (H - s) / 2, x2: s, y2: (H + s) / 2 },
+      { x1: W - s, y1: (H - s) / 2, x2: W, y2: (H + s) / 2 },
+      { x1: W * 0.15, y1: H * 0.3, x2: W * 0.15 + s * 0.7, y2: H * 0.3 + s * 0.7 },
+      { x1: W * 0.85 - s * 0.7, y1: H * 0.3, x2: W * 0.85, y2: H * 0.3 + s * 0.7 }
+    ];
+    var b = c[searchI++ % c.length]; b.search = true;
+    // o recorte do modelo usa margem 1,25: compensa para cobrir exatamente a área candidata
+    var cx = (b.x1 + b.x2) / 2, cy = (b.y1 + b.y2) / 2, h = (b.x2 - b.x1) / 2.5;
+    return [{ x1: cx - h, y1: cy - h, x2: cx + h, y2: cy + h, search: true }];
+  }
   function detect(img, W, H) {
+    if (nat && C.noDet) {
+      // procura só a mão que falta (uma tentativa por quadro, sem atrapalhar a que já está sendo seguida)
+      if (tracks.length >= cfg.maxHands) return Promise.resolve(tracks);
+      var cand = searchBoxes(W, H)[0];
+      if (tracks.some(function (t) { return iou(t, cand) > 0.3; })) return Promise.resolve(tracks);
+      return Promise.resolve(tracks.concat([cand]));
+    }
     var s = Math.min(DET / W, DET / H), w = Math.round(W * s), h = Math.round(H * s);
     xDet.fillStyle = 'rgb(114,114,114)'; xDet.fillRect(0, 0, DET, DET); xDet.drawImage(img, 0, 0, w, h);
     var px = xDet.getImageData(0, 0, DET, DET).data, n = DET * DET;
@@ -139,7 +161,7 @@
     frameN++;
     var t0 = (G.performance || Date).now();
     // modo foco (dedo perto de um painel): sem detector, só a mão que aponta, recorte justo => mais precisão e menos latência
-    var needDet = !tracks.length || (!cfg.focus && frameN % cfg.detEvery === 0);
+    var needDet = !tracks.length || (!cfg.focus && frameN % cfg.detEvery === 0) || (nat && C.noDet && tracks.length < cfg.maxHands && !cfg.focus);
     if (cfg.focus && tracks.length > 1) tracks = [tracks[cfg.focusIdx || 0] || tracks[0]];
     var boxesP = needDet ? detect(img, W, H).then(function (b) {
       // mantém rastros que o detector perdeu mas seguem confiáveis
@@ -148,7 +170,7 @@
     }) : Promise.resolve(tracks);
     return boxesP.then(function (boxes) {
       var chain = Promise.resolve(), hands = [];
-      boxes.slice(0, cfg.maxHands).forEach(function (bx) { chain = chain.then(function () { return estimate(img, bx).then(function (h) { if (h.conf >= cfg.poseConf) hands.push(h); }); }); });
+      boxes.slice(0, cfg.maxHands).forEach(function (bx) { chain = chain.then(function () { return estimate(img, bx).then(function (h) { if (h.conf >= (bx.search ? 0.5 : cfg.poseConf)) hands.push(h); }); }); });
       return chain.then(function () {
         var tb = []; hands = hands.filter(function (h) { var b = boxFrom(h.kp); if (tb.some(function (o) { return iou(o, b) > 0.4; })) return false; tb.push(b); return true; });
         tracks = tb;

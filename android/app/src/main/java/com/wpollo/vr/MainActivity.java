@@ -27,16 +27,15 @@ import android.widget.FrameLayout;
 
 import androidx.webkit.WebViewAssetLoader;
 
-import java.nio.FloatBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import ai.onnxruntime.OnnxTensor;
-import ai.onnxruntime.OrtEnvironment;
-import ai.onnxruntime.OrtSession;
-import ai.onnxruntime.providers.NNAPIFlags;
+import org.tensorflow.lite.Interpreter;
+import org.tensorflow.lite.gpu.GpuDelegate;
+import org.tensorflow.lite.nnapi.NnApiDelegate;
+
 
 /**
  * Wpollo VR para VR Box: o mesmo app web, servido localmente de dentro do APK (sem rede = menor latência),
@@ -50,9 +49,11 @@ public class MainActivity extends Activity implements android.hardware.SensorEve
     private volatile float pressure = 0;
     private PermissionRequest pendingPermission;
     private final ExecutorService nn = Executors.newSingleThreadExecutor();
-    private OrtEnvironment env;
-    private OrtSession det, pose;
+    private Interpreter pose;
+    private org.tensorflow.lite.Delegate poseDelegate;
     private String nnEp = "cpu";
+    private final java.nio.ByteBuffer poseIn = java.nio.ByteBuffer.allocateDirect(3 * 256 * 256 * 4).order(java.nio.ByteOrder.nativeOrder());
+    private final float[][][] outX = new float[1][21][512], outY = new float[1][21][512];
 
     @Override
     protected void onCreate(Bundle b) {
@@ -149,39 +150,43 @@ public class MainActivity extends Activity implements android.hardware.SensorEve
     @Override public void onAccuracyChanged(android.hardware.Sensor s, int a) { }
 
     // ------------------------------------------------------------------ inferência nativa (NNAPI)
-    private byte[] readAsset(String file) throws Exception {
-        try (java.io.InputStream in = getAssets().open("www/assets/ml/" + file)) {
-            java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream(); byte[] buf = new byte[1 << 16]; int n;
-            while ((n = in.read(buf)) > 0) bo.write(buf, 0, n); return bo.toByteArray();
+    private java.nio.MappedByteBuffer mapAsset(String file) throws Exception {
+        android.content.res.AssetFileDescriptor fd = getAssets().openFd("www/assets/ml/" + file);
+        try (java.io.FileInputStream in = new java.io.FileInputStream(fd.getFileDescriptor())) {
+            return in.getChannel().map(java.nio.channels.FileChannel.MapMode.READ_ONLY, fd.getStartOffset(), fd.getDeclaredLength());
         }
     }
-    /** Cria a sessão em cada acelerador possível, mede e fica com o mais rápido (NNAPI/NPU, XNNPACK/NEON, CPU). */
-    private OrtSession open(String file, long[] shape) throws Exception {
-        byte[] model = readAsset(file);
-        String[] kinds = {"nnapi", "xnnpack", "cpu"};
-        OrtSession best = null; String bestKind = "cpu"; double bestMs = 1e9;
-        float[] dummy = new float[(int) (shape[1] * shape[2] * shape[3])];
+    /** TFLite: testa NNAPI (NPU), GPU e XNNPACK (CPU NEON); mede e mantém o mais rápido. */
+    private void openPose() throws Exception {
+        java.nio.MappedByteBuffer model = mapAsset("rtmhand_fp16.tflite");
+        String[] kinds = {"nnapi", "gpu", "xnnpack"};
+        double bestMs = 1e9;
         for (String k : kinds) {
-            OrtSession s = null;
+            Interpreter it = null; org.tensorflow.lite.Delegate d = null;
             try {
-                OrtSession.SessionOptions o = new OrtSession.SessionOptions();
-                o.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
-                int cores = Math.max(2, Math.min(4, Runtime.getRuntime().availableProcessors() / 2));
-                if (k.equals("nnapi")) { o.addNnapi(java.util.EnumSet.of(NNAPIFlags.USE_FP16)); o.setIntraOpNumThreads(1); }
-                else if (k.equals("xnnpack")) { java.util.Map<String, String> m = new java.util.HashMap<>(); m.put("intra_op_num_threads", String.valueOf(cores)); o.addXnnpack(m); o.setIntraOpNumThreads(1); o.addConfigEntry("session.intra_op.allow_spinning", "0"); }
-                else o.setIntraOpNumThreads(cores);
-                s = env.createSession(model, o);
-                try (OnnxTensor t = OnnxTensor.createTensor(env, FloatBuffer.wrap(dummy), shape)) {
-                    for (int i = 0; i < 2; i++) s.run(java.util.Collections.singletonMap("input", t)).close();
-                    long t0 = System.nanoTime(); for (int i = 0; i < 4; i++) s.run(java.util.Collections.singletonMap("input", t)).close();
-                    double ms = (System.nanoTime() - t0) / 4e6;
-                    if (ms < bestMs) { if (best != null) best.close(); best = s; bestMs = ms; bestKind = k; s = null; }
+                Interpreter.Options o = new Interpreter.Options();
+                if (k.equals("nnapi")) { NnApiDelegate.Options no = new NnApiDelegate.Options(); no.setAllowFp16(true); no.setUseNnapiCpu(false);
+                    no.setExecutionPreference(NnApiDelegate.Options.EXECUTION_PREFERENCE_SUSTAINED_SPEED); d = new NnApiDelegate(no); o.addDelegate(d); o.setUseXNNPACK(false); }
+                else if (k.equals("gpu")) { GpuDelegate.Options go = new GpuDelegate.Options(); go.setPrecisionLossAllowed(true);
+                    go.setInferencePreference(GpuDelegate.Options.INFERENCE_PREFERENCE_SUSTAINED_SPEED); d = new GpuDelegate(go); o.addDelegate(d); }
+                else { o.setNumThreads(Math.max(2, Math.min(4, Runtime.getRuntime().availableProcessors() / 2))); o.setUseXNNPACK(true); }
+                it = new Interpreter(model, o);
+                for (int i = 0; i < 3; i++) runPose(it);
+                long t0 = System.nanoTime(); for (int i = 0; i < 5; i++) runPose(it);
+                double ms = (System.nanoTime() - t0) / 5e6;
+                if (ms < bestMs) {
+                    if (pose != null) pose.close(); if (poseDelegate instanceof java.io.Closeable) ((java.io.Closeable) poseDelegate).close();
+                    pose = it; poseDelegate = d; bestMs = ms; nnEp = k + " " + String.format(java.util.Locale.US, "%.1f", ms) + "ms"; it = null; d = null;
                 }
-            } catch (Exception e) { /* acelerador indisponível neste aparelho */ }
-            finally { if (s != null) try { s.close(); } catch (Exception ignored) { } }
+            } catch (Throwable e) { /* delegate indisponível neste aparelho */ }
+            finally { if (it != null) it.close(); if (d instanceof java.io.Closeable) try { ((java.io.Closeable) d).close(); } catch (Exception ignored) { } }
         }
-        nnEp = bestKind + " " + Math.round(bestMs) + "ms";
-        return best;
+        if (pose == null) throw new Exception("TFLite indisponível");
+    }
+    private void runPose(Interpreter it) {
+        poseIn.rewind();
+        java.util.Map<Integer, Object> outs = new java.util.HashMap<>(); outs.put(0, outX); outs.put(1, outY);
+        it.runForMultipleInputsOutputs(new Object[]{poseIn}, outs);
     }
 
     private static float[] toChw(byte[] rgba, int size, float[] mean, float[] std, boolean bgr) {
@@ -217,13 +222,8 @@ public class MainActivity extends Activity implements android.hardware.SensorEve
         @JavascriptInterface public boolean nnAvailable() { return true; }
         @JavascriptInterface public void nnInit() {
             nn.execute(() -> {
-                try {
-                    env = OrtEnvironment.getEnvironment();
-                    pose = open("hand_pose_fp32.onnx", new long[]{1, 3, 256, 256});
-                    String ep = nnEp;
-                    det = open("hand_det_fp32.onnx", new long[]{1, 3, 320, 320});
-                    js("window.__wpNative&&__wpNative.ready(" + org.json.JSONObject.quote("pose: " + ep + " • detector: " + nnEp) + ")");
-                } catch (Exception e) { js("window.__wpNative&&__wpNative.fail(" + org.json.JSONObject.quote(String.valueOf(e.getMessage())) + ")"); }
+                try { openPose(); js("window.__wpNative&&__wpNative.ready(" + org.json.JSONObject.quote("TFLite " + nnEp) + ",true)"); }
+                catch (Exception e) { js("window.__wpNative&&__wpNative.fail(" + org.json.JSONObject.quote(String.valueOf(e.getMessage())) + ")"); }
             });
         }
         /** recorte 256x256 RGBA em base64 -> 21 pontos (x,y no recorte, score) */
@@ -232,35 +232,25 @@ public class MainActivity extends Activity implements android.hardware.SensorEve
     }
 
     String poseJson(byte[] rgba) {
-                try {
-                    float[] in = toChw(rgba, 256, new float[]{123.675f, 116.28f, 103.53f}, new float[]{58.395f, 57.12f, 57.375f}, false);
-                    try (OnnxTensor t = OnnxTensor.createTensor(env, FloatBuffer.wrap(in), new long[]{1, 3, 256, 256});
-                         OrtSession.Result r = pose.run(java.util.Collections.singletonMap("input", t))) {
-                        float[][][] sx = (float[][][]) r.get(0).getValue(), sy = (float[][][]) r.get(1).getValue();
-                        StringBuilder sb = new StringBuilder("[");
-                        for (int k = 0; k < 21; k++) {
-                            int bx = 0, by = 0; float vx = -1e9f, vy = -1e9f;
-                            for (int a = 0; a < sx[0][k].length; a++) if (sx[0][k][a] > vx) { vx = sx[0][k][a]; bx = a; }
-                            for (int a = 0; a < sy[0][k].length; a++) if (sy[0][k][a] > vy) { vy = sy[0][k][a]; by = a; }
-                            if (k > 0) sb.append(',');
-                            sb.append(bx / 2f).append(',').append(by / 2f).append(',').append(Math.min(vx, vy));
-                        }
-                        return "[" + sb.append("]").toString().substring(1);
-                    }
-                } catch (Exception e) { return "null"; }
+        try {
+            int n = 256 * 256; poseIn.rewind(); java.nio.FloatBuffer f = poseIn.asFloatBuffer();
+            float[] chw = new float[3 * n];
+            for (int i = 0, j = 0; i < n; i++, j += 4) {
+                chw[i] = ((rgba[j] & 0xff) - 123.675f) / 58.395f; chw[n + i] = ((rgba[j + 1] & 0xff) - 116.28f) / 57.12f; chw[2 * n + i] = ((rgba[j + 2] & 0xff) - 103.53f) / 57.375f;
+            }
+            f.put(chw);
+            runPose(pose);
+            StringBuilder sb = new StringBuilder("[");
+            for (int k = 0; k < 21; k++) {
+                int bx = 0, by = 0; float vx = -1e9f, vy = -1e9f;
+                for (int a = 0; a < 512; a++) { if (outX[0][k][a] > vx) { vx = outX[0][k][a]; bx = a; } if (outY[0][k][a] > vy) { vy = outY[0][k][a]; by = a; } }
+                if (k > 0) sb.append(',');
+                sb.append(bx / 2f).append(',').append(by / 2f).append(',').append(Math.min(vx, vy));
+            }
+            return sb.append(']').toString();
+        } catch (Exception e) { return "null"; }
     }
-    String detJson(byte[] rgba) {
-                try {
-                    float[] in = toChw(rgba, 320, new float[]{103.53f, 116.28f, 123.675f}, new float[]{57.375f, 57.12f, 58.395f}, true);
-                    try (OnnxTensor t = OnnxTensor.createTensor(env, FloatBuffer.wrap(in), new long[]{1, 3, 320, 320});
-                         OrtSession.Result r = det.run(java.util.Collections.singletonMap("input", t))) {
-                        float[][][] d = (float[][][]) r.get(0).getValue();
-                        StringBuilder sb = new StringBuilder("[");
-                        for (int k = 0; k < d[0].length; k++) { if (k > 0) sb.append(','); for (int c = 0; c < 5; c++) { if (c > 0) sb.append(','); sb.append(d[0][k][c]); } }
-                        return sb.append("]").toString();
-                    }
-                } catch (Exception e) { return "null"; }
-    }
+    String detJson(byte[] rgba) { return "[]"; } // sem detector: o JS faz a busca com o próprio modelo de pose
 
     // canal binário WebMessagePort: o JS manda [tipo][id][RGBA] como ArrayBuffer (sem base64, sem cópia em texto)
     private androidx.webkit.WebMessagePortCompat nnPort;

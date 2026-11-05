@@ -13,7 +13,7 @@ fotográficos, hand tracking por câmera, realidade mista, Joy-Con, multitarefa 
 |---|---|---|
 | Para | Oculus Go (Oculus Browser), Quest, PC, celular | celular Android num VR Box |
 | Como | GitHub Pages: abra o link e toque em **Entrar no VR** | instale `WpolloVR.apk` (gerado pelo Actions, veja abaixo) |
-| Hand tracking | ONNX Runtime Web: WebNN NPU > WebGPU > CPU | **nativo: ONNX Runtime Android + NNAPI** (usa a NPU/DSP) |
+| Hand tracking | ONNX Runtime Web: WebGPU > CPU | **nativo: TFLite (LiteRT) com NNAPI (NPU), GPU ou XNNPACK — mede e usa o mais rápido** |
 | 6DoF | ARCore pelo WebXR (Chrome Android) | — (o WebView do Android não tem WebXR); use o site no Chrome |
 | Offline | depois da 1ª visita (service worker) | sempre (tudo dentro do APK) |
 

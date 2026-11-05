@@ -14,3 +14,5 @@
 | NewPipeExtractor v0.24.8 (só no APK) | TeamNewPipe | **GPL-3.0** — o APK distribuído fica sob GPL-3.0 |
 | Shizuku API 13.1.5 (só no APK) | RikkaApps | Apache-2.0 |
 | Fotos 360° de cinema e sala de concreto (cinema_hall, interior_construction) | Poly Haven | CC0 1.0 |
+| RTMPose-Hand LiteRT (rtmhand_fp16.tflite, só no APK) | litert-community / OpenMMLab | Apache-2.0 |
+| TensorFlow Lite 2.16.1 (só no APK) | Google | Apache-2.0 |
