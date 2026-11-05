@@ -1,11 +1,11 @@
-/* REgo OS — shell: Início estilo visionOS, janelas, multitarefa, menu de pausa, notificações */
+/* Wpollo VR — shell: Início (menu | conteúdo | central de controle), janelas, multitarefa, menu de pausa */
 (function () {
   'use strict';
   var R = window.REGO, THREE = window.THREE, M = R.models, ui = R.ui;
   var os = R.os = { running: [], current: null, windows: [], notes: R.store.get('notes', []), maxRunning: 3 };
 
-  var home, homeEnv, mainPanel, statusPanel, pausePanel, pauseOpen = false, fpsPanel;
-  var st = { tab: 'apps', page: 0, cat: 'Todos', pauseTab: 'main' };
+  var home, homeEnv, mainPanel, statusPanel, sidePanel, pausePanel, pauseOpen = false, fpsPanel;
+  var st = { tab: 'home', page: 0, cat: 'Todos', pauseTab: 'main' };
 
   // ------------------------------------------------------------ notificações / conquistas
   os.notify = function (msg) {
@@ -19,33 +19,51 @@
   };
 
   // ------------------------------------------------------------ ambiente do Início
+  var ENVS = [
+    ['apartamento', 'Apartamento', 'Sala moderna com vista para o mar', 'house'],
+    ['sala', 'Sala de estar', 'Casa aconchegante, luz do dia', 'sun'],
+    ['lounge', 'Lounge clássico', 'Salão iluminado e quente', 'sparkles'],
+    ['lago', 'Lago ao pôr do sol', 'Ao ar livre, campo e lago', 'sun-medium'],
+    ['noite', 'Noite estrelada', 'Campo aberto à noite', 'glasses'],
+    ['praia', 'Praia', 'Areia e mar', 'globe'],
+    ['espaco', 'Espaço', 'Flutuando entre planetas', 'sparkles']
+  ];
   function buildHomeEnv() {
     if (homeEnv) home.remove(homeEnv);
-    homeEnv = new THREE.Group(); var e = R.settings.homeEnv;
-    if (e === 'espaco') {
+    homeEnv = new THREE.Group(); var e = R.settings.homeEnv || 'apartamento';
+    var room = /apartamento|sala|lounge/.test(e) && R.assets.sky[e] ? R.assets.roomMesh(e, 9, 9, 3.4, R.settings.height) : null;
+    if (room) {
+      room.material.uniforms.rot.value = { apartamento: 4.71, sala: 4.71, lounge: 3.14 }[e];
+      homeEnv.add(room); M.lights(homeEnv, { hemi: 0.9, dir: 0.4 });
+    } else if (e === 'espaco') {
       M.env(homeEnv, { sky: 'space', ground: false, stars: 1500 });
       var planet = M.sphere(12, '#c77b4a', 24); planet.position.set(-30, 10, -60); homeEnv.add(planet);
       var ring = new THREE.Mesh(M.geo.torus(18, 0.6, 4, 40), R.mat.lambert('#e8c49a')); ring.rotation.x = 1.2; planet.add(ring);
-      var moon = M.sphere(3, '#bfc4cc', 14); moon.position.set(25, 18, -45); homeEnv.add(moon);
     } else if (e === 'noite') {
       M.env(homeEnv, { sky: 'night', ground: '#1b2a3a', tex: 'sparse_grass', trees: 30, mountains: '#1f2c44', stars: 1200 });
-      if (!R.assets.sky.night) { var moon2 = M.sphere(4, '#fff8dd', 16, R.mat.basic('#fff8dd')); moon2.position.set(20, 35, -70); homeEnv.add(moon2); }
     } else if (e === 'praia') {
-      M.env(homeEnv, { sky: 'day', ground: '#f1d9a6', tex: 'coast_sand_01', clouds: 8 });
-      var sea = new THREE.Mesh(M.geo.plane(300, 150), R.mat.lambert('#2a8fc4')); sea.rotation.x = -Math.PI / 2; sea.position.set(0, 0.02, -85); homeEnv.add(sea);
-      for (var i = 0; i < 6; i++) { var pt = M.tree(1.5, '#2f9e5a'); pt.position.set(-12 + i * 5, 0, 6 + (i % 2) * 3); homeEnv.add(pt); }
-    } else { // lago ao pôr do sol
+      M.env(homeEnv, { sky: 'day', photo: R.assets.sky.beach ? 'beach' : 'day', ground: '#f1d9a6', tex: 'coast_sand_01', clouds: 8 });
+    } else {
       M.env(homeEnv, { sky: 'lago', ground: '#3d5a4a', tex: 'sparse_grass', trees: 40, rocks: 8, shrubs: 12, mountains: '#7a6f99', clouds: 6 });
-      var lake = new THREE.Mesh(new THREE.CircleBufferGeometry(40, 32), R.mat.lambert('#6f8fc9')); lake.rotation.x = -Math.PI / 2; lake.position.set(0, 0.02, -48); homeEnv.add(lake);
-      if (!R.assets.sky.sunset) { var sun = M.sphere(6, '#ffd59a', 16, R.mat.basic('#ffd59a')); sun.position.set(0, 9, -120); homeEnv.add(sun); }
+      var lake = new THREE.Mesh(new THREE.CircleBufferGeometry(40, 32), R.mat.lambert('#55739a')); lake.rotation.x = -Math.PI / 2; lake.position.set(0, 0.02, -48); homeEnv.add(lake);
     }
     home.fog = null;
     home.add(homeEnv);
   }
-  os.setHomeEnv = function (e) { R.settings.homeEnv = e; R.saveSettings(); buildHomeEnv(); };
+  os.setHomeEnv = function (e) {
+    R.settings.homeEnv = e; R.saveSettings();
+    if (/apartamento|sala|lounge|praia/.test(e)) R.assets.loadSky(e === 'praia' ? 'beach' : e).then(buildHomeEnv); else buildHomeEnv();
+  };
 
-  // ------------------------------------------------------------ janela principal
+  // ------------------------------------------------------------ Início (3 painéis: menu | conteúdo | central de controle)
   var CATS = ['Todos', 'Destaques', 'Ação', 'Esporte', 'Física', 'Puzzle', 'Música', 'Relax', 'Corrida'];
+  var NAV = [['home', 'house', 'Início'], ['library', 'layout-grid', 'Biblioteca'], ['hands', 'hand', 'Modelos de mãos'], ['env', 'sun', 'Ambiente'],
+    ['video', 'video', 'Vídeo'], ['shots', 'image', 'Capturas'], ['settings', 'sliders-horizontal', 'Ajustes'], ['about', 'info', 'Sobre']];
+  var APPICON = { store: ['store', '#8a3cf0'], browser: ['globe', '#2f7bf6'], cloudplay: ['cloud', '#3a3f4b'], tv: ['tv', '#e5484d'], gallery: ['image', '#f2994a'],
+    camera: ['camera', '#ff5d8f'], clock: ['clock', '#30a46c'], calendar: ['calendar', '#e5484d'], calculator: ['calculator', '#5f6b7a'], files: ['folder', '#2f7bf6'],
+    messenger: ['message-square', '#8a3cf0'], remote: ['monitor', '#0ea5a4'], settings: ['settings', '#5f6b7a'], help: ['circle-help', '#2f7bf6'],
+    facebook: ['globe', '#1877f2'], instagram: ['aperture', '#d62976'], whatsapp: ['message-square', '#25d366'] };
+  var logoImg = new Image(); logoImg.onload = function () { ui.markAllDirty(); }; logoImg.src = 'assets/brand/logo_512.png';
   function gamesFiltered() {
     if (st.cat === 'Todos') return R.gameList;
     if (st.cat === 'Destaques') return R.gameList.filter(function (g) { return g.featured; });
@@ -53,113 +71,182 @@
   }
   function gameIcon(g) { return ui.genIcon('g:' + g.id, g.c1 || '#5b6cff', g.c2 || '#b14cff', g.glyph || '🎮'); }
   os.gameIcon = gameIcon;
-
-  function drawTabs(x, P) {
-    // barra de abas vertical (pílula de vidro à esquerda) — estilo visionOS
-    var tabs = [['apps', '▦', 'Apps'], ['games', '🎮', 'Jogos'], ['running', '⧉', 'Multitarefa'], ['env', '⛰', 'Ambientes']];
-    ui.glass(x, 8, P.ch / 2 - 150, 84, 300, 42);
-    for (var i = 0; i < tabs.length; i++) (function (t, i) {
-      P.button('tab' + t[0], 16, P.ch / 2 - 140 + i * 72, 68, 68, t[1], function () { st.tab = t[0]; st.page = 0; P.dirty = true; }, { active: st.tab === t[0], px: 30 });
-    })(tabs[i], i);
+  // bloco de app: quadrado arredondado com ícone de linha (estilo da referência)
+  function appTile(x, a, X, Y, S, hov) {
+    var ic = APPICON[a.id] || ['box', '#5f6b7a'];
+    ui.roundRect(x, X, Y, S, S, S * 0.26);
+    var g = x.createLinearGradient(X, Y, X + S, Y + S); g.addColorStop(0, ic[1]); g.addColorStop(1, 'rgba(20,22,30,0.9)');
+    x.fillStyle = g; x.fill(); x.lineWidth = hov ? 4 : 2; x.strokeStyle = hov ? '#fff' : 'rgba(255,255,255,0.18)'; x.stroke();
+    ui.icon(x, ic[0], X + S * 0.25, Y + S * 0.25, S * 0.5, '#fff', 1.8);
   }
+  os.appTile = appTile;
+
+  function renderSide(x, P) {
+    ui.glass(x, 0, 0, P.cw, P.ch, 40);
+    if (logoImg.complete && logoImg.naturalWidth) { var lw = P.cw - 120, lh = lw * logoImg.naturalHeight / logoImg.naturalWidth; x.drawImage(logoImg, 60, 18, lw, lh); }
+    var y0 = 250;
+    NAV.forEach(function (n, i) {
+      P.button('nav' + n[0], 22, y0 + i * 66, P.cw - 44, 56, n[2], function () { st.tab = n[0]; st.page = 0; mainPanel.dirty = true; P.dirty = true; R.sfx.play('tick'); },
+        { active: st.tab === n[0], align: 'left', lucide: n[1], r: 18, px: 22, iconSize: 26 });
+    });
+  }
+
+  function header(x, title, sub) { ui.text(x, title, 40, 52, 36, { weight: 800 }); if (sub) ui.text(x, sub, 40, 92, 19, { color: 'rgba(255,255,255,0.6)' }); }
 
   function renderMain(x, P) {
     var W = P.cw, H = P.ch;
-    drawTabs(x, P);
-    var X0 = 110;
-    if (st.tab === 'apps') {
-      // ícones flutuando sem janela (como no visionOS)
-      var apps = R.apps, cols = 6, s = 112, gx = (W - X0 - 30) / cols;
-      for (var i = 0; i < apps.length; i++) (function (a, i) {
-        var c = i % cols, r = Math.floor(i / cols), cx = X0 + c * gx + gx / 2, cy = 80 + r * 170;
-        var hov = P.hover === 'app' + a.id, sz = hov ? s * 1.1 : s;
-        if (hov) { x.beginPath(); x.arc(cx, cy, sz / 2 + 10, 0, 7); x.fillStyle = 'rgba(255,255,255,0.18)'; x.fill(); }
-        ui.drawIcon(x, a.iconObj, cx - sz / 2, cy - sz / 2, sz);
-        ui.text(x, a.name, cx, cy + s / 2 + 26, 22, { align: 'center', weight: 600, maxW: gx - 6 });
-        P.area('app' + a.id, cx - gx / 2, cy - s / 2 - 6, gx, s + 50, function () { os.openApp(a.id); });
-      })(apps[i], i);
-    } else if (st.tab === 'games') {
-      ui.glass(x, X0, 0, W - X0, H, 46);
-      ui.text(x, 'Jogos', X0 + 32, 44, 34, { weight: 800 });
-      ui.text(x, R.gameList.length + ' jogos • feitos para o controle do Go', X0 + 150, 46, 20, { color: 'rgba(255,255,255,0.6)' });
-      var cx0 = X0 + 24;
+    ui.glass(x, 0, 0, W, H, 40);
+    if (st.tab === 'home') {
+      var hr = new Date().getHours();
+      header(x, hr < 12 ? 'Bom dia!' : hr < 18 ? 'Boa tarde!' : 'Boa noite!', R.gameList.length + ' jogos • ' + (R.vrbox && R.vrbox.active ? 'modo VR Box' : R.isXR ? 'modo VR' : 'modo 2D'));
+      // continuar jogando
+      var recent = os.running.length ? os.running.map(function (c) { return c.def; }) : R.store.get('recent', []).map(function (id) { return R.gameById[id]; }).filter(Boolean);
+      recent = recent.slice(0, 4);
+      ui.text(x, os.running.length ? 'Em execução' : 'Jogados recentemente', 40, 140, 22, { weight: 700, color: 'rgba(255,255,255,0.8)' });
+      var cw = (W - 80) / 4;
+      for (var r = 0; r < 4; r++) (function (g, r) {
+        var X = 40 + r * cw, Y = 160;
+        if (!g) { ui.card(x, X + 4, Y, cw - 8, 110, 22); ui.text(x, '—', X + cw / 2, Y + 55, 22, { align: 'center', color: 'rgba(255,255,255,0.3)' }); return; }
+        var hov = P.hover === 'rec' + r; ui.card(x, X + 4, Y, cw - 8, 110, 22, hov);
+        ui.drawIcon(x, gameIcon(g), X + 18, Y + 17, 76);
+        ui.text(x, g.name, X + 106, Y + 44, 19, { weight: 700, maxW: cw - 120 });
+        ui.text(x, os.isRunning(g.id) ? '▶ Retomar' : g.cat, X + 106, Y + 76, 16, { color: os.isRunning(g.id) ? '#c9a2ff' : 'rgba(255,255,255,0.55)' });
+        P.area('rec' + r, X + 4, Y, cw - 8, 110, function () { os.launch(g.id); });
+      })(recent[r], r);
+      ui.text(x, 'Apps', 40, 310, 22, { weight: 700, color: 'rgba(255,255,255,0.8)' });
+      var cols = 9, gx = (W - 60) / cols, S = 84;
+      R.apps.forEach(function (a, i) {
+        var cx = 30 + (i % cols) * gx + gx / 2, cy = 330 + Math.floor(i / cols) * 140, hov = P.hover === 'app' + a.id;
+        appTile(x, a, cx - S / 2, cy, S, hov);
+        ui.text(x, a.name, cx, cy + S + 22, 16, { align: 'center', maxW: gx - 4, color: 'rgba(255,255,255,0.85)' });
+        P.area('app' + a.id, cx - gx / 2, cy, gx, S + 40, function () { os.openApp(a.id); });
+      });
+    } else if (st.tab === 'library') {
+      header(x, 'Biblioteca', R.gameList.length + ' jogos');
+      var cx0 = 40;
       for (var k = 0; k < CATS.length; k++) (function (c) {
-        x.font = ui.font(19, 600); var w = x.measureText(c).width + 30;
-        P.button('cat' + c, cx0, 78, w, 38, c, function () { st.cat = c; st.page = 0; P.dirty = true; }, { active: st.cat === c, px: 19 });
+        x.font = ui.font(18, 600); var w = x.measureText(c).width + 30;
+        P.button('cat' + c, cx0, 118, w, 40, c, function () { st.cat = c; st.page = 0; }, { active: st.cat === c, px: 18 });
         cx0 += w + 8;
       })(CATS[k]);
       var list = gamesFiltered(), per = 10, pages = Math.max(1, Math.ceil(list.length / per));
       st.page = Math.min(st.page, pages - 1);
-      var cw = (W - X0 - 48) / 5, ch = 196;
+      var gw = (W - 80) / 5, gh = 196;
       for (var j = 0; j < per; j++) {
         var g = list[st.page * per + j]; if (!g) break;
         (function (g, j) {
-          var cxx = X0 + 24 + (j % 5) * cw, cyy = 132 + Math.floor(j / 5) * (ch + 8);
-          var hov = P.hover === 'g' + g.id;
-          ui.roundRect(x, cxx + 4, cyy, cw - 8, ch, 26); x.fillStyle = hov ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.07)'; x.fill();
-          ui.drawIcon(x, gameIcon(g), cxx + cw / 2 - 48, cyy + 14, 96);
-          ui.text(x, g.name, cxx + cw / 2, cyy + 132, 20, { align: 'center', weight: 700, maxW: cw - 16 });
+          var X = 40 + (j % 5) * gw, Y = 176 + Math.floor(j / 5) * (gh + 10), hov = P.hover === 'g' + g.id;
+          ui.card(x, X + 5, Y, gw - 10, gh, 24, hov);
+          ui.drawIcon(x, gameIcon(g), X + gw / 2 - 46, Y + 16, 92);
+          ui.text(x, g.name, X + gw / 2, Y + 132, 19, { align: 'center', weight: 700, maxW: gw - 20 });
           var b = R.store.get('best.' + g.id, null);
-          ui.text(x, g.cat + (b !== null ? ' • 🏆' + b : ''), cxx + cw / 2, cyy + 162, 16, { align: 'center', color: 'rgba(255,255,255,0.55)', maxW: cw - 16 });
-          if (os.isRunning(g.id)) { x.beginPath(); x.arc(cxx + cw - 26, cyy + 22, 8, 0, 7); x.fillStyle = '#4cd964'; x.fill(); }
-          P.area('g' + g.id, cxx + 4, cyy, cw - 8, ch, function () { os.launch(g.id); });
+          ui.text(x, g.cat + (b !== null ? ' • 🏆 ' + b : ''), X + gw / 2, Y + 162, 15, { align: 'center', color: 'rgba(255,255,255,0.55)', maxW: gw - 20 });
+          if (os.isRunning(g.id)) { x.beginPath(); x.arc(X + gw - 28, Y + 22, 8, 0, 7); x.fillStyle = '#4cd964'; x.fill(); }
+          P.area('g' + g.id, X + 5, Y, gw - 10, gh, function () { os.launch(g.id); });
         })(g, j);
       }
-      P.button('prev', W / 2 + 10, H - 62, 60, 46, '‹', function () { st.page = Math.max(0, st.page - 1); P.dirty = true; }, { px: 30 });
-      ui.text(x, (st.page + 1) + ' / ' + pages, W / 2 + 120, H - 38, 20, { align: 'center', color: 'rgba(255,255,255,0.7)' });
-      P.button('next', W / 2 + 170, H - 62, 60, 46, '›', function () { st.page = Math.min(pages - 1, st.page + 1); P.dirty = true; }, { px: 30 });
+      P.button('prev', W / 2 - 150, H - 66, 64, 48, '', function () { st.page = Math.max(0, st.page - 1); }, { lucide: 'arrow-left' });
+      ui.text(x, (st.page + 1) + ' / ' + pages, W / 2, H - 42, 20, { align: 'center', color: 'rgba(255,255,255,0.7)' });
+      P.button('next', W / 2 + 86, H - 66, 64, 48, '', function () { st.page = Math.min(pages - 1, st.page + 1); }, { lucide: 'arrow-right' });
       P.state.pages = pages;
-    } else if (st.tab === 'running') {
-      ui.glass(x, X0, 0, W - X0, H, 46);
-      ui.text(x, 'Multitarefa', X0 + 32, 44, 34, { weight: 800 });
-      ui.text(x, 'Jogos ficam pausados na memória (máx. ' + os.maxRunning + '). Janelas de apps abertas: ' + os.windows.length, X0 + 32, 84, 19, { color: 'rgba(255,255,255,0.6)' });
-      if (!os.running.length) ui.text(x, 'Nenhum jogo em execução. Abra um em "Jogos"!', X0 + 32, 160, 24, { color: 'rgba(255,255,255,0.8)' });
-      for (var r = 0; r < os.running.length; r++) (function (ctx, r) {
-        var yy = 120 + r * 120, ww = W - X0 - 64;
-        ui.roundRect(x, X0 + 32, yy, ww, 104, 28); x.fillStyle = 'rgba(255,255,255,0.08)'; x.fill();
-        ui.drawIcon(x, gameIcon(ctx.def), X0 + 46, yy + 12, 80);
-        ui.text(x, ctx.def.name, X0 + 146, yy + 36, 26, { weight: 700 });
-        ui.text(x, 'Pontos: ' + ctx.score, X0 + 146, yy + 72, 19, { color: 'rgba(255,255,255,0.6)' });
-        P.button('res' + r, X0 + ww - 260, yy + 26, 150, 54, '▶ Retomar', function () { os.resume(ctx); }, { fill: '#2f7bf6', fillHover: '#4b8ff8', px: 21 });
-        P.button('kill' + r, X0 + ww - 96, yy + 26, 110, 54, '✕', function () { os.kill(ctx); P.dirty = true; }, { px: 24 });
-      })(os.running[r], r);
-      var wy = 120 + Math.max(1, os.running.length) * 120 + 10;
-      if (os.windows.length) P.button('closeall', X0 + 32, Math.min(H - 80, wy), 300, 54, 'Fechar todas as janelas', function () { os.closeAllWindows(); P.dirty = true; }, { px: 20 });
+    } else if (st.tab === 'hands') {
+      header(x, 'Modelos de mãos', 'Como suas mãos aparecem no VR');
+      var styles = [['controle', 'Controle do Go', 'gamepad-2'], ['realista', 'Mão + controle', 'hand'], ['classico', 'Luva Clássica', 'hand-metal'], ['fofinho', 'Luva Fofinha', 'sparkles']];
+      styles.forEach(function (sd, i) {
+        var X = 40 + i * ((W - 80) / 4), on = (R.settings.handStyle || 'realista') === sd[0];
+        P.button('hs' + sd[0], X + 5, 130, (W - 80) / 4 - 10, 150, sd[1], function () { R.settings.handStyle = sd[0]; R.saveSettings(); if (R.input.applyHandStyle) R.input.applyHandStyle(); }, { active: on, lucide: sd[2], r: 24, px: 22, iconSize: 44 });
+      });
+      ui.text(x, 'Cor da luva', 40, 330, 22, { weight: 700 });
+      ['#1d1f26', '#7a4a2a', '#8a3cf0', '#e5484d', '#ffffff', '#ffb3d9', '#30a46c', '#f2c94c'].forEach(function (c, i) {
+        P.button('gc' + i, 40 + i * 74, 352, 60, 60, '', function () { R.settings.gloveColor = c; R.saveSettings(); if (R.input.applyHandStyle) R.input.applyHandStyle(); }, { fill: c, r: 30 });
+        if ((R.settings.gloveColor || '#1d1f26') === c) { ui.roundRect(x, 36 + i * 74, 348, 68, 68, 34); x.lineWidth = 4; x.strokeStyle = '#fff'; x.stroke(); }
+      });
+      ui.text(x, 'Hand tracking (câmera do celular)', 40, 460, 22, { weight: 700 });
+      var ht = R.handtrack;
+      ui.wrap(x, ht && ht.supported() ? ('Status: ' + ht.status() + '. Gesto de pinça = gatilho; palma virada para você por 1 s = menu. Detalhes do motor (GPU/CPU, filtros) na tela inicial do modo VR Box e em Ajustes.')
+        : 'Disponível no modo VR Box (celular com câmera traseira). No Oculus Go use o controle.', 40, 482, W - 80, 19, 28);
+      if (ht && ht.supported()) P.button('htt', 40, H - 86, 300, 58, ht.running() ? 'Desligar hand tracking' : 'Ligar hand tracking', function () { if (ht.running()) ht.stop(); else ht.start(); }, { active: ht.running(), lucide: 'hand', align: 'left', px: 19 });
     } else if (st.tab === 'env') {
-      ui.glass(x, X0, 0, W - X0, H, 46);
-      ui.text(x, 'Ambientes', X0 + 32, 44, 34, { weight: 800 });
-      var envs = [['lago', 'Lago ao pôr do sol', '#f2a7a0', '#4a6fb5', '🌅'], ['noite', 'Floresta à noite', '#1d2a5c', '#02030b', '🌙'], ['espaco', 'Espaço', '#05061a', '#3a2a6b', '🪐'], ['praia', 'Praia', '#9be3ff', '#f1d9a6', '🏖']];
-      for (var e = 0; e < envs.length; e++) (function (en, e) {
-        var ex = X0 + 32 + (e % 2) * 420, ey = 90 + Math.floor(e / 2) * 210;
-        P.button('env' + en[0], ex, ey, 400, 190, '', function () { os.setHomeEnv(en[0]); P.dirty = true; }, { r: 30, active: R.settings.homeEnv === en[0] });
-        ui.drawIcon(x, ui.genIcon('env' + en[0], en[2], en[3], en[4]), ex + 20, ey + 35, 120);
-        ui.text(x, en[1], ex + 160, ey + 95, 26, { weight: 700, color: R.settings.homeEnv === en[0] ? '#111' : '#fff' });
-      })(envs[e], e);
+      header(x, 'Ambiente', 'Fotos 360° reais (Poly Haven, CC0) projetadas em volta de você');
+      ENVS.forEach(function (en, i) {
+        var X = 40 + (i % 4) * ((W - 80) / 4), Y = 130 + Math.floor(i / 4) * 200, on = (R.settings.homeEnv || 'apartamento') === en[0];
+        P.button('env' + en[0], X + 5, Y, (W - 80) / 4 - 10, 186, en[1], function () { os.setHomeEnv(en[0]); }, { active: on, lucide: en[3], r: 24, px: 22, iconSize: 50 });
+      });
+    } else if (st.tab === 'video') {
+      header(x, 'Vídeo', 'Cinema gigante no seu ambiente');
+      P.button('tv', 40, 130, W - 80, 90, 'Abrir TV / cinema', function () { os.openApp('tv'); }, { lucide: 'tv', align: 'left', r: 22, px: 24 });
+      P.button('br', 40, 236, W - 80, 90, 'Navegador WebXR', function () { os.openApp('browser'); }, { lucide: 'globe', align: 'left', r: 22, px: 24 });
+      P.button('cp', 40, 342, W - 80, 90, 'Cloud Play', function () { os.openApp('cloudplay'); }, { lucide: 'cloud', align: 'left', r: 22, px: 24 });
+    } else if (st.tab === 'shots') {
+      header(x, 'Capturas', R.capture.list().length + ' imagem(ns)');
+      P.button('take', W - 300, 40, 260, 56, 'Tirar captura', function () { R.capture.take(); }, { lucide: 'camera', align: 'left', px: 20, fill: ui.ACCENT });
+      P.button('gal', W - 300, 104, 260, 50, 'Abrir galeria', function () { os.openApp('gallery'); }, { lucide: 'image', align: 'left', px: 18 });
+      var shots = R.capture.list(), tw = (W - 80) / 4, th = tw * 400 / 640;
+      shots.slice(0, 8).forEach(function (sh, i) {
+        var im = shotImg(sh.src), X = 40 + (i % 4) * tw, Y = 180 + Math.floor(i / 4) * (th + 14);
+        if (im.complete && im.naturalWidth) { x.save(); ui.roundRect(x, X + 5, Y, tw - 10, th, 16); x.clip(); x.drawImage(im, X + 5, Y, tw - 10, th); x.restore(); }
+        P.area('sh' + i, X, Y, tw, th, function () { os.openApp('gallery'); });
+      });
+    } else if (st.tab === 'settings') {
+      var sapp = null; R.apps.forEach(function (a) { if (a.id === 'settings') sapp = a; });
+      if (!P.state.sw) { P.state.sw = { st: { tab: 'perf' }, app: sapp }; }
+      sapp.render(x, P, P.state.sw, H);
+    } else if (st.tab === 'about') {
+      if (logoImg.complete && logoImg.naturalWidth) x.drawImage(logoImg, 40, 40, 300, 300 * logoImg.naturalHeight / logoImg.naturalWidth);
+      ui.text(x, 'Wpollo VR', 380, 90, 44, { weight: 800 });
+      ui.text(x, 'Versão 2.0 • ' + R.gameList.length + ' jogos', 380, 136, 22, { color: 'rgba(255,255,255,0.7)' });
+      ui.wrap(x, 'Feito para reviver o Oculus Go e transformar qualquer celular num headset com VR Box. Motor: three.js r128 + cannon.js. Modelos, texturas e fotos 360°: Poly Haven (CC0). Mãos: WebXR Input Profiles (MIT). Ícones: Lucide (ISC). Hand tracking: MediaPipe (Apache-2.0). Sem afiliação com Meta, Roblox ou outras marcas.', 380, 170, W - 420, 20, 30);
     }
   }
+  var shotCache = {};
+  function shotImg(src) { if (!shotCache[src]) { var i = new Image(); i.onload = function () { mainPanel.dirty = true; }; i.src = src; shotCache[src] = i; } return shotCache[src]; }
 
+  var DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'], MES = ['jan.', 'fev.', 'mar.', 'abr.', 'mai.', 'jun.', 'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.'];
+  var battery = null;
+  try { if (navigator.getBattery) navigator.getBattery().then(function (b) { battery = b; }); } catch (e) {}
   function renderStatus(x, P) {
-    ui.glass(x, 0, 0, P.cw, P.ch, P.ch / 2);
-    var d = new Date(), hh = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
-    ui.text(x, hh, 30, P.ch / 2, 28, { weight: 700 });
-    ui.text(x, 'REgo OS', 120, P.ch / 2, 22, { color: 'rgba(255,255,255,0.75)' });
-    ui.text(x, (R.isXR ? '🥽 VR' : '🖥 2D') + '  •  ' + R.fps + ' fps  •  ⧉ ' + os.running.length, P.cw - 30, P.ch / 2, 22, { align: 'right', color: 'rgba(255,255,255,0.75)' });
+    ui.glass(x, 0, 0, P.cw, P.ch, 40);
+    var d = new Date();
+    ui.text(x, ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2), P.cw - 34, 70, 64, { align: 'right', weight: 300 });
+    ui.text(x, DIAS[d.getDay()] + ', ' + d.getDate() + ' ' + MES[d.getMonth()] + ' ' + d.getFullYear(), P.cw - 34, 124, 20, { align: 'right', color: 'rgba(255,255,255,0.75)' });
+    ui.text(x, (battery ? Math.round(battery.level * 100) + '%  ' : '') + R.fps + ' fps', P.cw - 34, 156, 17, { align: 'right', color: 'rgba(255,255,255,0.55)' });
+    var vb = R.vrbox && R.vrbox.active;
+    var tiles = [['shot', 'camera', 'Captura', false, function () { R.capture.take(); }],
+      ['rec', 'rotate-cw', 'Centralizar', false, function () { R.recenter(); }],
+      ['torch', 'flashlight', 'Lanterna', vb && R.vrbox.torchOn, function () { if (vb) R.vrbox.toggleTorch(); else ui.toast('Lanterna: só no modo VR Box (celular)'); }],
+      ['mr', 'scan-eye', 'Realidade mista', vb && R.vrbox.passthrough, function () { if (vb) R.vrbox.togglePassthrough(); else ui.toast('Realidade mista: só no modo VR Box'); }],
+      ['ht', 'hand', 'Mãos', R.handtrack && R.handtrack.running(), function () { if (R.handtrack && R.handtrack.supported()) { if (R.handtrack.running()) R.handtrack.stop(); else R.handtrack.start(); } else ui.toast('Hand tracking: modo VR Box'); }],
+      ['fps', 'circle-dot', 'FPS', !!R.settings.showFps, function () { R.settings.showFps = !R.settings.showFps; R.saveSettings(); }]];
+    var tw = (P.cw - 50) / 3;
+    tiles.forEach(function (t, i) {
+      P.button('t' + t[0], 18 + (i % 3) * tw, 190 + Math.floor(i / 3) * 128, tw - 8, 118, t[2], t[4], { active: t[3], lucide: t[1], r: 26, px: 17, iconSize: 32 });
+    });
+    os.slider(P, x, 'vol', 'Volume', 30, 460, P.cw - 60, R.settings.volume, 0, 1, function (v) { R.settings.volume = v; R.sfx.setVolume(v); }, function (v) { return Math.round(v * 100) + '%'; });
+    os.slider(P, x, 'bri', 'Brilho', 30, 560, P.cw - 60, R.settings.brightness === undefined ? 1 : R.settings.brightness, 0.3, 1, function (v) { R.settings.brightness = v; os.applyBrightness(); }, function (v) { return Math.round(v * 100) + '%'; });
     P.state.min = d.getMinutes(); P.state.fps = R.fps;
   }
+  // brilho: esfera escura em volta da cabeça (custo ~0)
+  var dim = null;
+  os.applyBrightness = function () {
+    var b = R.settings.brightness === undefined ? 1 : R.settings.brightness;
+    if (!dim) { dim = new THREE.Mesh(new THREE.SphereBufferGeometry(0.3, 12, 8), new THREE.MeshBasicMaterial({ color: '#000', transparent: true, side: THREE.BackSide, depthTest: false, depthWrite: false })); dim.renderOrder = 999; R.camera.add(dim); }
+    dim.material.opacity = 1 - b; dim.visible = b < 0.99;
+  };
 
   // ------------------------------------------------------------ init
   os.init = function () {
     home = new THREE.Group(); home.name = 'home'; R.scene.add(home); os.home = home;
     buildHomeEnv();
-    for (var i = 0; i < R.apps.length; i++) { var a = R.apps[i]; a.iconObj = a.icon ? ui.loadIcon(a.icon) : ui.genIcon('app' + a.id, a.c1, a.c2, a.glyph); }
+    for (var i = 0; i < R.apps.length; i++) { var a = R.apps[i]; a.iconObj = ui.genIcon('app' + a.id, (APPICON[a.id] || [0, '#5f6b7a'])[1], '#1a1c24', ''); }
 
-    mainPanel = new ui.Panel({ w: 1.9, h: 1.05, res: 560, render: renderMain, onSwipe: function (d) { if (st.tab === 'games') st.page = Math.max(0, Math.min((mainPanel.state.pages || 1) - 1, st.page + d)); } });
-    mainPanel.mesh.position.set(0, 1.45, -2.3);
-    home.add(mainPanel.mesh); os.mainPanel = mainPanel;
-
-    statusPanel = new ui.Panel({ w: 0.95, h: 0.11, res: 560, render: renderStatus, onTick: function (dt, P) { var d = new Date(); if (P.state.min !== d.getMinutes() || P.state.fps !== R.fps) P.dirty = true; } });
-    statusPanel.mesh.position.set(0, 2.1, -2.3);
-    home.add(statusPanel.mesh);
+    // menu lateral, conteúdo e central de controle, inclinados em volta do usuário
+    sidePanel = new ui.Panel({ w: 0.62, h: 1.12, res: 560, render: renderSide });
+    sidePanel.mesh.position.set(-1.3, 1.45, -1.62); sidePanel.mesh.rotation.y = 0.62; home.add(sidePanel.mesh);
+    mainPanel = new ui.Panel({ w: 1.6, h: 1.12, res: 560, render: renderMain, onSwipe: function (d) { if (st.tab === 'library') st.page = Math.max(0, Math.min((mainPanel.state.pages || 1) - 1, st.page + d)); } });
+    mainPanel.mesh.position.set(0, 1.45, -2.05); home.add(mainPanel.mesh); os.mainPanel = mainPanel;
+    statusPanel = new ui.Panel({ w: 0.62, h: 1.12, res: 560, render: renderStatus, onTick: function (dt, P) { var d = new Date(); if (P.state.min !== d.getMinutes() || P.state.fps !== R.fps) P.dirty = true; } });
+    statusPanel.mesh.position.set(1.3, 1.45, -1.62); statusPanel.mesh.rotation.y = -0.62; home.add(statusPanel.mesh);
+    os.applyBrightness();
 
     fpsPanel = new ui.Panel({ w: 0.22, h: 0.07, res: 400, onTop: true, render: function (x, P) { ui.glass(x, 0, 0, P.cw, P.ch, 14); ui.text(x, R.fps + ' fps', P.cw / 2, P.ch / 2, 18, { align: 'center', weight: 700, color: R.fps >= 70 ? '#7dff9c' : R.fps >= 55 ? '#ffe27a' : '#ff7a7a' }); },
       onTick: function (dt, P) { if (P.state.f !== R.fps) { P.state.f = R.fps; P.dirty = true; } } });
@@ -174,8 +261,10 @@
     };
     // abre jogo/app por hash: #game=bowling
     var m = /game=([\w-]+)/.exec(location.hash); if (m && R.gameById[m[1]]) os.launch(m[1]);
-    os.notify('Bem-vindo ao REgo OS — ' + R.gameList.length + ' jogos prontos');
+    os.notify('Bem-vindo ao Wpollo VR — ' + R.gameList.length + ' jogos prontos');
     // modelos comuns (mãos, controle, árvores, céus) em segundo plano
+    var he = R.settings.homeEnv || 'apartamento';
+    if (/apartamento|sala|lounge/.test(he)) R.assets.loadSky(he).then(function () { if (!os.current) buildHomeEnv(); });
     R.assets.preloadCommon().then(function () {
       R.input.upgradeHands();
       if (!os.current) buildHomeEnv();
@@ -260,6 +349,7 @@
     if (os.running.length >= os.maxRunning) os.kill(os.running[0]);
     if (os.loading) return;
     var ctx = new R.GameCtx(def);
+    var rec = R.store.get('recent', []).filter(function (x) { return x !== id; }); rec.unshift(id); R.store.set('recent', rec.slice(0, 8));
     // carrega modelos/texturas/céu do jogo antes de entrar (cache => instantâneo na 2ª vez)
     os.loading = { name: def.name, p: 0 }; showLoading();
     var spec = R.gameAssets(def);

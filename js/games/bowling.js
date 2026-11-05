@@ -42,7 +42,7 @@
     [-1, 1].forEach(function (sd) { var b = new C.Body({ mass: 0 }); b.addShape(new C.Box(new C.Vec3(0.05, 0.3, LEN))); b.position.set(sd * (W / 2 + 0.3), 0.3, -LEN / 2); ph.world.addBody(b); });
     var pit = new C.Body({ mass: 0 }); pit.addShape(new C.Box(new C.Vec3(3, 1, 0.1))); pit.position.set(0, 1, -LEN - 1.6); ph.world.addBody(pit);
     var hood = M.box(2.6, 0.6, 0.6, '#14161c'); hood.position.set(0, 1.4, -LEN - 0.4); g.add(hood);
-    var logo = M.text('REgo Lanes', 0.22, { color: '#ffd23f', size: 60 }); logo.position.set(0, 1.4, -LEN - 0.09); g.add(logo);
+    var logo = M.text('Wpollo Lanes', 0.22, { color: '#ffd23f', size: 60 }); logo.position.set(0, 1.4, -LEN - 0.09); g.add(logo);
 
     var PIN_SPOTS = [], sp = 0.305;
     for (var r = 0; r < 4; r++) for (var c = 0; c <= r; c++) PIN_SPOTS.push([(c - r / 2) * sp, -LEN + 1 - r * sp * 0.866]);

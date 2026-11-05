@@ -1,4 +1,4 @@
-/* REgo OS — física (cannon.js 0.6.2, MIT) com passo fixo e sono de corpos */
+/* Wpollo VR — física (cannon.js 0.6.2, MIT) com passo fixo e sono de corpos */
 (function () {
   'use strict';
   var R = window.REGO, THREE = window.THREE, C = window.CANNON;

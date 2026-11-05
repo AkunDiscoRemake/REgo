@@ -1,4 +1,4 @@
-/* REgo OS — efeitos sonoros sintetizados (zero downloads, zero latência de rede) */
+/* Wpollo VR — efeitos sonoros sintetizados (zero downloads, zero latência de rede) */
 (function () {
   'use strict';
   var R = window.REGO;

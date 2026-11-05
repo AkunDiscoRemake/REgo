@@ -493,5 +493,30 @@
   "license": "CC0 1.0",
   "author": "Poly Haven",
   "tris": 2457
+ },
+ "sky/apartamento.jpg": {
+  "source": "https://polyhaven.com/a/cayley_interior",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "sky/sala.jpg": {
+  "source": "https://polyhaven.com/a/kiara_interior",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "sky/lounge.jpg": {
+  "source": "https://polyhaven.com/a/lythwood_lounge",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "sky/lab.jpg": {
+  "source": "https://polyhaven.com/a/industrial_pipe_and_valve_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "sky/hospital.jpg": {
+  "source": "https://polyhaven.com/a/hospital_room",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
  }
 }

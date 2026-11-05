@@ -1,4 +1,4 @@
-/* REgo OS — apps do sistema (ícones refeitos pelo usuário em assets/icons) */
+/* Wpollo VR — apps do sistema */
 (function () {
   'use strict';
   var R = window.REGO, THREE = window.THREE, ui = R.ui;
@@ -45,7 +45,7 @@
     id: 'browser', name: 'Navegador', icon: 'browser', size: [1.25, 0.95],
     open: function (w) { w.st.url = ''; w.st.bm = R.store.get('bookmarks', []); },
     render: function (x, P, w, H) {
-      header(x, P, 'Navegador WebXR', 'Sites WebXR abrem em tela cheia. Para voltar ao REgo, use o botão Voltar do navegador.');
+      header(x, P, 'Navegador WebXR', 'Sites WebXR abrem em tela cheia. Para voltar ao Wpollo VR, use o botão Voltar do navegador.');
       textField(P, x, 'url', 36, 116, P.cw - 230, 56, w.st.url, 'Digite um endereço…', function () {
         w.st.focus = true; R.os.keyboardFor(w, function (k) {
           if (k === '\n') { go(w); return; } typeInto(w.st, 'url', k); P.dirty = true;
@@ -173,7 +173,7 @@
     app({
       id: id, name: name, icon: icon, size: [0.85, 0.55],
       render: function (x, P, w, H) {
-        ui.drawIcon(x, this.iconObj, 36, 36, 110);
+        R.os.appTile(x, this, 36, 36, 110, false);
         ui.text(x, name, 170, 70, 36, { weight: 800 });
         ui.text(x, 'Atalho web (não afiliado)', 170, 112, 19, { color: 'rgba(255,255,255,0.6)' });
         P.button('open', 36, H - 110, P.cw - 72, 76, 'Abrir ' + url.replace('https://', ''), function () { openExternal(url); }, { fill: '#2f7bf6', fillHover: '#4b8ff8', px: 24 });
@@ -234,7 +234,7 @@
   // ---------------------------------------------------------------- Central de ajuda
   var HELP = [
     ['Controle do Oculus Go', 'Gatilho = ação/clicar. Touchpad: clique em cima para andar, embaixo para ré, nas bordas para girar. Deslize para trocar páginas. Segure o centro do touchpad para abrir o menu do jogo.'],
-    ['Botão Voltar', 'No Go o botão Voltar sai do modo imersivo: o REgo pausa o jogo e mostra o menu. Toque em "Entrar no VR" para continuar de onde parou.'],
+    ['Botão Voltar', 'No Go o botão Voltar sai do modo imersivo: o Wpollo VR pausa o jogo e mostra o menu. Toque em "Entrar no VR" para continuar de onde parou.'],
     ['Multitarefa', 'Use "Início (manter aberto)" no menu do jogo: o jogo fica pausado na memória. Retome pela aba ⧉ Multitarefa. Até 3 janelas de apps ficam abertas ao seu redor; arraste a barrinha embaixo da janela para movê-la.'],
     ['Braço duplo', 'No menu do jogo, ative Braço duplo: seu controle é espelhado para o outro lado, criando uma segunda mão que também atira, pega e bate.'],
     ['Desempenho', 'Configurações > Qualidade ajusta a resolução. Foveation 2–3 e 72 Hz são o melhor equilíbrio no Go. Tudo é gerado por código: nada de downloads pesados.'],
@@ -312,7 +312,7 @@
           try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf('rego.') === 0) localStorage.removeItem(k); }); } catch (e) {}
           location.reload();
         }, { fill: '#e5484d', px: 20 });
-        ui.text(x, 'REgo OS • three.js r128 • cannon.js • ' + R.gameList.length + ' jogos', X, H - 120, 18, { color: 'rgba(255,255,255,0.5)' });
+        ui.text(x, 'Wpollo VR • three.js r128 • cannon.js • ' + R.gameList.length + ' jogos', X, H - 120, 18, { color: 'rgba(255,255,255,0.5)' });
       }
     },
     close: function () { R.saveSettings(); }
@@ -325,7 +325,7 @@
     onSwipe: function (w, d) { w.st.i = (w.st.i + d + R.gameList.length) % R.gameList.length; },
     render: function (x, P, w, H) {
       var g = R.gameList[w.st.i], self = this;
-      header(x, P, 'Loja REgo', 'Todos os jogos são gratuitos e já vêm instalados. Deslize para navegar.');
+      header(x, P, 'Loja Wpollo', 'Todos os jogos são gratuitos e já vêm instalados. Deslize para navegar.');
       ui.roundRect(x, 36, 110, P.cw - 72, 300, 30);
       var gr = x.createLinearGradient(36, 110, P.cw, 410); gr.addColorStop(0, g.c1 || '#5b6cff'); gr.addColorStop(1, g.c2 || '#b14cff');
       x.fillStyle = gr; x.fill();

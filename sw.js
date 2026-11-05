@@ -1,4 +1,4 @@
-/* REgo OS — service worker: cache local => abre instantâneo e funciona offline no Go */
+/* Wpollo VR — service worker: cache local => abre instantâneo e funciona offline no Go */
 var CACHE = 'rego-v1';
 var CORE = ['./', 'index.html', 'css/app.css', 'manifest.webmanifest', 'js/vendor/three.min.js', 'js/vendor/cannon.min.js',
   'js/core/engine.js', 'js/core/models.js', 'js/core/audio.js', 'js/core/ui.js', 'js/core/input.js', 'js/core/physics.js',

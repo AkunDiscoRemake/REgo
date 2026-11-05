@@ -1,4 +1,4 @@
-/* REgo OS — modelos procedurais low-poly (CC0, gerados por código) + materiais em cache
+/* Wpollo VR — modelos procedurais low-poly (CC0, gerados por código) + materiais em cache
  * Todo modelo aqui é original e liberado em domínio público (CC0).
  * Materiais Lambert (iluminação por vértice) = barato para a Adreno 530.
  */

@@ -1,4 +1,4 @@
-/* REgo OS — mãos realistas (WebXR Input Profiles "generic-hand", MIT) segurando o controle do Go.
+/* Wpollo VR — mãos realistas (WebXR Input Profiles "generic-hand", MIT) segurando o controle do Go.
  * O modelo usa juntas independentes (estilo hand-tracking), então fazemos a cinemática direta:
  * cada dedo dobra em torno do eixo lateral da mão; o indicador acompanha o gatilho.
  */

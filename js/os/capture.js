@@ -1,4 +1,4 @@
-/* REgo OS — captura de tela dentro do VR (render-to-texture) -> Galeria */
+/* Wpollo VR — captura de tela dentro do VR (render-to-texture) -> Galeria */
 (function () {
   'use strict';
   var R = window.REGO, THREE = window.THREE;

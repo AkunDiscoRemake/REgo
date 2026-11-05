@@ -3,21 +3,61 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<meta name="theme-color" content="#101218">
-<meta name="description" content="REgo OS — um sistema WebXR para reviver o Oculus Go: 50+ jogos, multitarefa e UI estilo visionOS.">
-<title>REgo OS</title>
+<meta name="theme-color" content="#140a28">
+<meta name="description" content="Wpollo VR — VR para Oculus Go e VR Box: jogos realistas, hand tracking, realidade mista.">
+<title>Wpollo VR</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="assets/icons/store_bg.png">
+<link rel="icon" href="assets/brand/icon_192.png">
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="overlay">
-  <div class="brand"><b>REgo</b> OS <span id="count"></span></div>
-  <button id="enter" disabled>Verificando VR…</button>
-  <div id="hint">Mouse: esquerdo = gatilho • direito arrasta p/ olhar • WASD = touchpad • Q/E girar • Esc = menu</div>
+  <div id="splash">
+    <img id="logo" src="assets/brand/logo_512.png" alt="Wpollo VR">
+    <div id="sub">VR para Oculus Go e VR Box • <span id="count"></span></div>
+    <div id="actions">
+      <button id="enter" disabled>Verificando VR…</button>
+      <button id="go2d" class="ghost">Modo 2D (sem óculos)</button>
+      <button id="openbox" class="ghost">VR Box (celular)</button>
+    </div>
+  </div>
+  <form id="boxcfg" hidden onsubmit="return false">
+    <h2>Configurar VR Box</h2>
+    <p class="hint">Esta é a única tela 2D do Wpollo VR. Depois de iniciar, coloque o celular no VR Box.</p>
+    <fieldset><legend>Cabeça</legend>
+      <label>Rastreio <select name="track"><option value="3dof">3DoF — giroscópio (menor latência)</option><option value="6dof">6DoF — ARCore (andar de verdade)</option></select></label>
+      <label>Distorção das lentes <select name="distortion"><option value="1">Ligada</option><option value="0">Desligada</option></select></label>
+      <label>Distância entre olhos <input type="range" name="ipd" min="0.055" max="0.072" step="0.001"><output></output></label>
+      <label>Campo de visão <input type="range" name="fov" min="70" max="115" step="1"><output></output></label>
+      <label>Predição da cabeça (ms) <input type="range" name="predictMs" min="0" max="40" step="1"><output></output></label>
+      <label>Resolução <input type="range" name="scale" min="0.75" max="2.5" step="0.05"><output></output></label>
+    </fieldset>
+    <fieldset><legend>Hand tracking</legend>
+      <label>Ativar <select name="htOn"><option value="1">Sim</option><option value="0">Não</option></select></label>
+      <label>Acelerador <select name="engine"><option value="npu">NPU (WebNN)</option><option value="gpu">GPU (WebGPU)</option><option value="cpu">CPU (WASM int8)</option></select></label>
+      <label>Execução <select name="async"><option value="1">Assíncrona (thread separada)</option><option value="0">Síncrona (thread principal)</option></select></label>
+      <label>Filtro <select name="filter"><option value="oneeuro">One Euro</option><option value="kalman">Kalman</option><option value="ema">Média exponencial</option><option value="none">Nenhum (cru)</option></select></label>
+      <label>Suavização (One Euro: corte mín.) <input type="range" name="minCutoff" min="0.1" max="5" step="0.1"><output></output></label>
+      <label>Resposta a movimento rápido (beta) <input type="range" name="beta" min="0" max="0.2" step="0.005"><output></output></label>
+      <label>Kalman — ruído do processo <input type="range" name="kalmanQ" min="0.001" max="0.2" step="0.001"><output></output></label>
+      <label>Predição das mãos (ms) <input type="range" name="predictMs_h" min="0" max="80" step="5"><output></output></label>
+      <label>Câmera <select name="camRes"><option>320x240</option><option>640x480</option><option>1280x720</option></select></label>
+      <label>Detector a cada N quadros <input type="range" name="detEvery" min="1" max="30" step="1"><output></output></label>
+      <label>Mãos <select name="maxHands"><option value="1">1</option><option value="2">2</option></select></label>
+      <label>Estilo da luva <select name="handStyle"><option value="classico">Clássico</option><option value="fofinho">Fofinho (peludinho)</option></select></label>
+      <label>Campo de visão da câmera <input type="range" name="camFov" min="50" max="90" step="1"><output></output></label>
+      <p class="hint" id="npuinfo"></p>
+    </fieldset>
+    <fieldset><legend>Extras</legend>
+      <label>Realidade mista ao iniciar <select name="mr"><option value="0">Não</option><option value="1">Sim (câmera)</option></select></label>
+      <p class="hint">Joy-Con / controle Bluetooth: pareie antes. Com controle, o clique vem dos botões e a mão só aponta.</p>
+    </fieldset>
+    <button id="startbox">Iniciar no VR Box</button>
+    <button type="button" id="backsplash" class="ghost">Voltar</button>
+  </form>
 </div>
-<div id="loading"><div class="spin"></div><div>Carregando REgo OS…</div></div>
+<div id="loading"><img src="assets/brand/logo_512.png" alt=""><div class="spin"></div></div>
 <!-- bibliotecas locais (sem CDN = menor latência) -->
 <script src="js/vendor/three.min.js"></script>
 <script src="js/vendor/cannon.min.js"></script>
@@ -35,6 +75,9 @@
 <script src="js/core/ui.js"></script>
 <script src="js/core/input.js"></script>
 <script src="js/core/physics.js"></script>
+<script src="js/core/icons.js"></script>
+<script src="js/core/vrbox.js"></script>
+<script src="js/core/handtrack.js"></script>
 <!-- sistema -->
 <script src="js/os/kit.js"></script>
 <script src="js/os/capture.js"></script>

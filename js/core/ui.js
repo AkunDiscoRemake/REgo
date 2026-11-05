@@ -1,4 +1,4 @@
-/* REgo OS — UI em canvas no espaço 3D, estilo "vidro" (inspirado no visionOS)
+/* Wpollo VR — UI em canvas no espaço 3D, estilo "vidro" (inspirado no visionOS)
  * Modo imediato: cada painel tem render(ctx, P) que desenha e registra botões.
  * Só redesenha quando algo muda (hover/estado) => quase zero custo por frame.
  */
@@ -16,16 +16,19 @@
     x.lineTo(X + W, Y + H - r); x.quadraticCurveTo(X + W, Y + H, X + W - r, Y + H); x.lineTo(X + r, Y + H);
     x.quadraticCurveTo(X, Y + H, X, Y + H - r); x.lineTo(X, Y + r); x.quadraticCurveTo(X, Y, X + r, Y); x.closePath();
   };
+  // estilo Wpollo: vidro grafite fosco, borda sutil, destaque azul
+  ui.ACCENT = '#8a3cf0'; ui.ACCENT_H = '#a25cff';
   ui.glass = function (x, X, Y, W, H, r, tint) {
     var g = x.createLinearGradient(0, Y, 0, Y + H);
-    g.addColorStop(0, tint ? tint[0] : 'rgba(86,88,104,0.78)'); g.addColorStop(1, tint ? tint[1] : 'rgba(40,42,54,0.78)');
+    g.addColorStop(0, tint ? tint[0] : 'rgba(58,62,74,0.86)'); g.addColorStop(1, tint ? tint[1] : 'rgba(34,37,46,0.88)');
     ui.roundRect(x, X, Y, W, H, r); x.fillStyle = g; x.fill();
-    x.lineWidth = 2; x.strokeStyle = 'rgba(255,255,255,0.22)'; x.stroke();
-    // brilho na borda superior
-    var hl = x.createLinearGradient(0, Y, 0, Y + 40);
-    hl.addColorStop(0, 'rgba(255,255,255,0.14)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
-    ui.roundRect(x, X + 2, Y + 2, W - 4, Math.min(60, H - 4), r); x.fillStyle = hl; x.fill();
+    x.lineWidth = 2; x.strokeStyle = 'rgba(255,255,255,0.13)'; x.stroke();
+    var hl = x.createLinearGradient(0, Y, 0, Y + 70);
+    hl.addColorStop(0, 'rgba(255,255,255,0.07)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
+    ui.roundRect(x, X + 2, Y + 2, W - 4, Math.min(80, H - 4), r); x.fillStyle = hl; x.fill();
   };
+  // cartão interno (blocos dentro de painéis)
+  ui.card = function (x, X, Y, W, H, r, hov) { ui.roundRect(x, X, Y, W, H, r || 20); x.fillStyle = hov ? 'rgba(255,255,255,0.13)' : 'rgba(255,255,255,0.06)'; x.fill(); };
   ui.text = function (x, s, X, Y, px, opts) {
     opts = opts || {};
     x.font = ui.font(px, opts.weight); x.fillStyle = opts.color || '#fff';
@@ -116,19 +119,27 @@
     var x = this.ctx, hov = this.hover === id, on = !!opts.active;
     if (opts.style !== 'none') {
       ui.roundRect(x, X, Y, W, H, opts.r !== undefined ? opts.r : H / 2);
-      x.fillStyle = opts.fill || (on ? 'rgba(255,255,255,0.92)' : hov ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.10)');
+      x.fillStyle = opts.fill || (on ? ui.ACCENT : hov ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.07)');
       if (opts.fill && hov) x.fillStyle = opts.fillHover || opts.fill;
+      if (on && hov && !opts.fill) x.fillStyle = ui.ACCENT_H;
       x.fill();
-      if (hov) { x.lineWidth = 3; x.strokeStyle = 'rgba(255,255,255,0.55)'; x.stroke(); }
+      if (hov) { x.lineWidth = 2; x.strokeStyle = 'rgba(255,255,255,0.35)'; x.stroke(); }
     }
+    var lic = opts.lucide, hasLab = label !== undefined && label !== null && label !== '';
     if (opts.icon) {
       var s = opts.iconSize || H * 0.7;
-      ui.drawIcon(x, opts.icon, X + (label ? 14 : (W - s) / 2), Y + (H - s) / 2, s);
+      ui.drawIcon(x, opts.icon, X + (hasLab ? 14 : (W - s) / 2), Y + (H - s) / 2, s);
     }
-    if (label !== undefined && label !== null && label !== '') {
+    if (lic && ui.icon) {
+      var is = opts.iconSize || Math.min(H * 0.5, 34);
+      ui.icon(x, lic, hasLab ? (opts.align === 'left' ? X + 22 : X + W / 2 - is / 2) : X + (W - is) / 2, hasLab && opts.align !== 'left' ? Y + H * 0.2 : Y + (H - is) / 2, is, opts.color || '#fff', 2);
+    }
+    if (hasLab) {
       var px = opts.px || Math.round(H * 0.42);
-      ui.text(x, label, opts.align === 'left' ? X + (opts.icon ? H : 22) : X + W / 2, Y + H / 2 + 1, px,
-        { align: opts.align === 'left' ? 'left' : 'center', color: on ? '#111' : (opts.color || '#fff'), weight: opts.weight || 600, maxW: W - 20 });
+      var ty = lic && opts.align !== 'left' ? Y + H * 0.78 : Y + H / 2 + 1;
+      var tx = opts.align === 'left' ? X + (opts.icon ? H : lic ? 34 + Math.min(H * 0.5, 34) : 22) : X + W / 2;
+      ui.text(x, label, tx, ty, lic && opts.align !== 'left' ? Math.round(px * 0.8) : px,
+        { align: opts.align === 'left' ? 'left' : 'center', color: opts.color || '#fff', weight: opts.weight || 600, maxW: W - 20 });
     }
     this.items.push({ id: id, x: X, y: Y, w: W, h: H, onClick: onClick, onDrag: opts.onDrag, onHold: opts.onHold });
   };
@@ -187,6 +198,12 @@
       p.hitUI = true;
       var it = P2.hit(px, py);
       if (it) hovered[P2.mesh.id] = { P: P2, id: it.id };
+      // VR Box sem controle: olhar fixo por 1,3 s num botão = clique (cursor cresce enquanto carrega)
+      if (p.gaze && it && !R.input.joycon) {
+        if (p.dwellId === P2.mesh.id + ':' + it.id) { p.dwell += dt; if (p.dwell > 1.3) { p.dwell = -10; p.pressed = true; } }
+        else { p.dwellId = P2.mesh.id + ':' + it.id; p.dwell = 0; }
+        p.dwellK = Math.max(0, p.dwell / 1.3);
+      } else if (p.gaze) { p.dwellId = null; p.dwellK = 0; }
       if (p.pressed) {
         p.consumed = true;
         if (it) {
@@ -259,7 +276,7 @@
     var P = new Panel({
       w: 1.1, h: 0.42, res: 600,
       render: function (x, P) {
-        ui.glass(x, 0, 0, P.cw, P.ch, 36);
+        ui.glass(x, 0, 0, P.cw, P.ch, 30, ['rgba(52,74,120,0.80)', 'rgba(34,48,86,0.84)']);
         var kw = 54, kh = 46, gap = 6, top = 14;
         for (var r = 0; r < ROWS.length; r++) {
           var row = ROWS[r], ox = (P.cw - row.length * (kw + gap)) / 2;

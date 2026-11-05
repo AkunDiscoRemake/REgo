@@ -1,4 +1,4 @@
-/* REgo OS — input: controle do Go (3DoF), braço duplo espelhado, mouse/teclado/toque */
+/* Wpollo VR — input: controle do Go (3DoF), braço duplo espelhado, mouse/teclado/toque */
 (function () {
   'use strict';
   var R = window.REGO, THREE = window.THREE;
@@ -125,6 +125,7 @@
     cv.addEventListener('touchstart', function (e) {
       R.sfx.resume();
       if (e.touches.length >= 2) { input._menuKey = true; touch = null; return; }
+      if (R.vrbox && R.vrbox.active) { mp._xrDown = true; e.preventDefault(); touch = null; return; }
       var t = e.touches[0];
       touch = { x: t.clientX, y: t.clientY, sx: t.clientX, sy: t.clientY, drag: false, t0: performance.now() };
       mouse.x = (t.clientX / window.innerWidth) * 2 - 1; mouse.y = -(t.clientY / window.innerHeight) * 2 + 1;
@@ -160,11 +161,14 @@
     if (R.isXR) {
       for (var i = 0; i < input.real.length; i++) if (input.real[i].active) list.push(input.real[i]);
       if (!list.length) list.push(input.real[0]);
+    } else if (R.vrbox && R.vrbox.active && R.handtrack) {
+      var hp = R.handtrack.pointers(); for (var h = 0; h < hp.length; h++) list.push(hp[h]);
+      if (!list.length) list.push(input.mousePointer); // olhar (gaze) quando não há mãos
     } else list.push(input.mousePointer);
     // canhoto: só troca o lado do braço espelhado (o hardware já sabe a mão)
     if (input.dualArm && list.length === 1) list.push(input.mirror);
     input.pointers = list;
-    var all = input.real.concat([input.mousePointer, input.mirror]);
+    var all = input.real.concat([input.mousePointer, input.mirror], input.extra);
     for (var j = 0; j < all.length; j++) {
       var vis = list.indexOf(all[j]) >= 0;
       all[j].obj.visible = vis; if (!vis) all[j].cursor.visible = false;
@@ -213,8 +217,20 @@
         }
       }
     } else {
-      // mouse: raio sai da câmera pelo cursor
       var mp = input.mousePointer;
+      if (R.vrbox && R.vrbox.active) {
+        // VR Box: cabeça vem dos sensores; ponteiro = mãos rastreadas ou olhar (centro da visão)
+        var sig = R.handtrack ? R.handtrack.pointers().length : 0;
+        if (sig !== input._lastHands) { input._lastHands = sig; refreshList(); }
+        R.camera.updateMatrixWorld(true);
+        var go = R.camera.getWorldPosition(camP).clone(); R.camera.getWorldQuaternion(camQ);
+        mp.setPose(go, camQ); mp.gaze = true; mp.model.visible = false; mp.laser.visible = false; mp.laserOn = false;
+        var jc = pollPads(pad);
+        setButton(mp, !!mp._xrDown || jc.r || jc.l);
+        for (var hp2 = 0; hp2 < input.pointers.length; hp2++) { var hpn = input.pointers[hp2]; if (hpn.isHand) setButton(hpn, input.joycon ? (hpn.id === 70 ? jc.l : jc.r) : !!hpn._handDown); }
+      } else {
+      // mouse: raio sai da câmera pelo cursor
+      if (mp.gaze) { mp.gaze = false; mp.laserOn = !R.mods.noLaser; }
       camPitch = Math.max(-1.45, Math.min(1.45, camPitch));
       var ks = input.keys;
       if (ks.ArrowLeft) camYaw += dt * 2; if (ks.ArrowRight) camYaw -= dt * 2;
@@ -230,12 +246,13 @@
       tmpQ.setFromRotationMatrix(tmpM);
       mp.setPose(tmpV, tmpQ);
       mp.ray.set(o, raycaster.ray.direction); mp.origin.copy(o); mp.dir.copy(raycaster.ray.direction);
-      setButton(mp, !!mp._xrDown);
+      var jd = pollPads(pad); setButton(mp, !!mp._xrDown || jd.r || jd.l);
       if (ks.KeyW) { pad.y = -1; pad.down = true; } if (ks.KeyS) { pad.y = 1; pad.down = true; }
       if (ks.KeyA) { pad.x = -1; pad.down = true; } if (ks.KeyD) { pad.x = 1; pad.down = true; }
       if (ks.Space) { pad.down = true; }
       pad.touched = pad.down;
       if (input._wheel) { pad.swipe = input._wheel > 0 ? 1 : -1; input._wheel = 0; }
+      }
     }
 
     // swipe horizontal no touchpad (sem clicar) — usado p/ trocar páginas
@@ -300,7 +317,7 @@
       if (p.cursorAt && p.laserOn) {
         p.cursor.visible = true; p.cursor.position.copy(p.cursorAt);
         p.cursor.lookAt(R.camera.getWorldPosition(tmpV));
-        var s = p.cursor.position.distanceTo(tmpV) * 0.7; p.cursor.scale.setScalar(Math.max(0.3, s));
+        var s = p.cursor.position.distanceTo(tmpV) * 0.7 * (1 + (p.gaze ? (p.dwellK || 0) * 1.5 : 0)); p.cursor.scale.setScalar(Math.max(0.3, s));
       } else p.cursor.visible = false;
       p.cursorAt = null;
       p.laserDist = 4;
@@ -312,7 +329,37 @@
     var lh = !!R.settings.leftHanded, ok = false;
     input.real.concat([input.mousePointer]).forEach(function (p, i) { ok = R.hands.attach(p, i === 1 ? !lh : lh) || ok; });
     R.hands.attach(input.mirror, !lh);
+    input.applyHandStyle();
     return ok;
+  };
+  // Joy-Con / controle Bluetooth (sem giroscópio: só botões e analógico)
+  // R/ZR/A/B = gatilho da mão direita, L/ZL = esquerda, +/−/Home = menu, analógico = andar/girar
+  var padPrev = {};
+  function pollPads(pad) {
+    var out = { r: false, l: false }, gps = navigator.getGamepads ? navigator.getGamepads() : [], any = false;
+    for (var i = 0; i < gps.length; i++) {
+      var g = gps[i]; if (!g || !g.connected || /oculus|openvr|xr/i.test(g.id)) continue;
+      any = true; var b = function (k) { return g.buttons[k] && g.buttons[k].pressed; };
+      var name = g.id.toLowerCase(), leftOnly = /joy-con \(l\)|joycon.*l\b|\(l\)/.test(name), rightOnly = /joy-con \(r\)|\(r\)/.test(name);
+      var trig = b(0) || b(1) || b(5) || b(7), ltrig = b(4) || b(6) || b(2) || b(3);
+      if (leftOnly) out.l = out.l || trig || ltrig; else { out.r = out.r || trig; out.l = out.l || ltrig; if (rightOnly) out.r = out.r || ltrig; }
+      var menu = b(8) || b(9) || b(16);
+      if (menu && !padPrev[i]) input._menuKey = true; padPrev[i] = menu;
+      var ax = g.axes[0] || 0, ay = g.axes[1] || 0;
+      if (Math.abs(ax) + Math.abs(ay) > 0.5) { pad.x = ax; pad.y = ay; pad.down = true; pad.touched = true; }
+      if (b(12)) { pad.y = -1; pad.down = true; } if (b(13)) { pad.y = 1; pad.down = true; }
+      if (b(14)) { pad.x = -1; pad.down = true; } if (b(15)) { pad.x = 1; pad.down = true; }
+    }
+    if (any !== !!input.joycon) { input.joycon = any; if (any) R.ui && R.ui.toast && R.ui.toast('🎮 Controle conectado: botões = clique (a mão segue apontando)', 3); }
+    return out;
+  }
+  input.pollPads = pollPads;
+  input.extra = [];
+  input.makePointer = function (id) { var p = new Pointer(id, false); buildVisual(p); p.model.visible = false; input.extra.push(p); return p; };
+  input.applyHandStyle = function () {
+    var st = R.settings.handStyle || 'realista';
+    input.real.concat([input.mousePointer, input.mirror]).forEach(function (p) { if (p.hand) p.hand.root.visible = st !== 'controle'; });
+    if (R.handtrack) R.handtrack.applyStyle();
   };
   input.setLaser = function (p, dist, point) { p.laserDist = dist; p.cursorAt = point || null; };
   input.Pointer = Pointer;

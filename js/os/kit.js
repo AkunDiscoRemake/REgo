@@ -1,4 +1,4 @@
-/* REgo OS — kit de jogos: contexto de jogo, HUD, rodadas, recordes, locomoção, helpers */
+/* Wpollo VR — kit de jogos: contexto de jogo, HUD, rodadas, recordes, locomoção, helpers */
 (function () {
   'use strict';
   var R = window.REGO, THREE = window.THREE, M = R.models;

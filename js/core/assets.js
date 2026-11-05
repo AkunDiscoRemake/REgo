@@ -1,4 +1,4 @@
-/* REgo OS — gerenciador de assets: modelos GLB (CC0/MIT), texturas, céus fotográficos.
+/* Wpollo VR — gerenciador de assets: modelos GLB (CC0/MIT), texturas, céus fotográficos.
  * Tudo é opcional: se um asset falhar, os jogos caem no modelo procedural.
  * Qualidade "go": Lambert + textura de cor com AO assado (barato na Adreno 530).
  * Qualidade "realista": Standard (PBR) + normal map + reflexo do céu.
@@ -139,6 +139,25 @@
     if (A.realistic()) A.setEnv(key);
     return m;
   };
+  // sala fotográfica: projeta o 360° a partir do ponto da câmera sobre uma caixa (chão/paredes na
+  // profundidade certa em estéreo). Barato: 1 caixa + 1 textura, sem iluminação.
+  A.roomMesh = function (key, w, d, h, eye) {
+    var t = A.sky[key]; if (!t) return null;
+    eye = eye || 1.6;
+    var geo = new THREE.BoxBufferGeometry(w, h, d); geo.translate(0, h / 2, 0);
+    var mat = new THREE.ShaderMaterial({
+      uniforms: { map: { value: t }, center: { value: new THREE.Vector3(0, eye, 0) }, rot: { value: Math.PI } },
+      vertexShader: 'varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position,1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
+      fragmentShader: 'uniform sampler2D map; uniform vec3 center; uniform float rot; varying vec3 vW;\n' +
+        'void main(){ vec3 d = normalize(vW - center); float c = cos(rot), s = sin(rot); d = vec3(c*d.x + s*d.z, d.y, -s*d.x + c*d.z);\n' +
+        ' vec2 uv = vec2(atan(d.z, d.x) * 0.15915494 + 0.5, asin(clamp(d.y,-1.0,1.0)) * 0.31830989 + 0.5);\n' +
+        ' gl_FragColor = texture2D(map, uv); }',
+      side: THREE.BackSide, depthWrite: true
+    });
+    var m = new THREE.Mesh(geo, mat); m.renderOrder = -10; m.userData.sky = true;
+    if (A.realistic()) A.setEnv(key);
+    return m;
+  };
   var pmrem = null, envCache = {};
   A.setEnv = function (key) {
     if (!A.sky[key]) return;
@@ -149,8 +168,9 @@
   };
 
   // assets comuns pré-carregados em segundo plano logo após o boot
-  A.COMMON = { models: ['fir_sapling', 'shrub_01', 'rock_07', 'oculus_go', 'hand_right', 'hand_left'], tex: ['sparse_grass', 'wood_floor', 'asphalt_02', 'brushed_concrete', 'coast_sand_01', 'park_dirt', 'snow_02', 'brown_planks_03', 'marble_tiles', 'laminate_floor', 'leafy_grass', 'brick_floor', 'aerial_grass_rock'], sky: 'day' };
+  A.COMMON = { skyExtra: ['apartamento'], models: ['fir_sapling', 'shrub_01', 'rock_07', 'oculus_go', 'hand_right', 'hand_left'], tex: ['sparse_grass', 'wood_floor', 'asphalt_02', 'brushed_concrete', 'coast_sand_01', 'park_dirt', 'snow_02', 'brown_planks_03', 'marble_tiles', 'laminate_floor', 'leafy_grass', 'brick_floor', 'aerial_grass_rock'], sky: 'day' };
   A.preloadCommon = function () {
-    return A.loadAll(A.COMMON).then(function () { return Promise.all([A.loadSky('sunset'), A.loadSky('night')]); });
+    var first = R.settings.homeEnv && /apartamento|sala|lounge/.test(R.settings.homeEnv) ? R.settings.homeEnv : 'apartamento';
+    return A.loadSky(first).then(function () { return A.loadAll(A.COMMON); }).then(function () { return Promise.all([A.loadSky('sunset'), A.loadSky('night')]); });
   };
 })();

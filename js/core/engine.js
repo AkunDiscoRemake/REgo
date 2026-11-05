@@ -1,4 +1,4 @@
-/* REgo OS — engine core
+/* Wpollo VR — engine core
  * Escrito em ES2015 "seguro" (sem ?. / ?? / class fields) para rodar no
  * Oculus Browser antigo do Oculus Go (Chromium ~77).
  */
@@ -17,7 +17,7 @@
     height: 1.6,
     volume: 0.8,
     showFps: false,
-    homeEnv: 'lago',
+    homeEnv: 'apartamento',
     laserColor: '#7fd0ff',
     cloudUrl: 'https://www.roblox.com/games/{id}',
     leftHanded: false
@@ -26,6 +26,7 @@
     var s = {};
     try { s = JSON.parse(localStorage.getItem('rego.settings') || '{}') || {}; } catch (e) { s = {}; }
     for (var k in DEFAULTS) if (!(k in s)) s[k] = DEFAULTS[k];
+    if (!s.v || s.v < 2) { s.v = 2; if (s.homeEnv === 'lago') s.homeEnv = 'apartamento'; } // Wpollo VR 2.0: novo ambiente padrão
     return s;
   })();
   R.saveSettings = function () {
@@ -158,7 +159,10 @@
     fpsAcc += rawDt; fpsFrames++;
     if (fpsAcc >= 0.5) { R.fps = Math.round(fpsFrames / fpsAcc); fpsAcc = 0; fpsFrames = 0; }
 
+    var vb = R.vrbox && R.vrbox.active;
+    if (vb) R.vrbox.updateHead();
     applyPlayer();
+    if (vb && R.handtrack) R.handtrack.update();
     R.input.update(rawDt, xrFrame);
     R.ui.update(rawDt);
     R.os.update(dt, rawDt);
@@ -167,8 +171,9 @@
     R.input.syncVisuals();
 
     if (R.capture && R.capture.pending) R.capture.run();
-    renderer.render(scene, camera);
+    if (vb) R.vrbox.render(scene, camera); else renderer.render(scene, camera);
   }
+  R._frame = frame;
 
   R.worldHeadPos = function (out) { return camera.getWorldPosition(out || tmpV); };
   R.headYaw = function () {
@@ -181,6 +186,7 @@
     return out;
   };
   R.recenter = function () {
+    if (R.vrbox && R.vrbox.active) { R.vrbox.recenter(); return; }
     var cur = R.headYaw();
     var local = cur - (R.player.yaw + R.player.yawOffset);
     R.player.yawOffset = -local;
