@@ -45,7 +45,7 @@
     id: 'browser', name: 'Navegador', icon: 'browser', size: [1.25, 0.95],
     open: function (w) { w.st.url = ''; w.st.bm = R.store.get('bookmarks', []); },
     render: function (x, P, w, H) {
-      header(x, P, 'Navegador WebXR', 'Sites WebXR abrem em tela cheia. Para voltar ao Wpollo VR, use o botão Voltar do navegador.');
+      header(x, P, 'Navegador XR', R.browserNative && R.browserNative() ? 'Use o "Navegador" (páginas dentro do VR) ou abra no Wolvic.' : 'Sites WebXR abrem em tela cheia. Quest/Pico: use o Wolvic (navegador XR aberto) para navegar em VR.');
       textField(P, x, 'url', 36, 116, P.cw - 230, 56, w.st.url, 'Digite um endereço…', function () {
         w.st.focus = true; R.os.keyboardFor(w, function (k) {
           if (k === '\n') { go(w); return; } typeInto(w.st, 'url', k); P.dirty = true;
@@ -564,6 +564,6 @@
   webApp('whatsapp', 'WhatsApp', 'whatsapp', 'https://web.whatsapp.com');
 
   // ordem do Início
-  var order = ['store', 'chat', 'browser', 'cloudplay', 'tv', 'gallery', 'camera', 'clock', 'calendar', 'calculator', 'files', 'messenger', 'remote', 'settings', 'help', 'facebook', 'instagram', 'whatsapp'];
-  apps.sort(function (a, b) { return order.indexOf(a.id) - order.indexOf(b.id); });
+  var order = ['store', 'videos', 'chat', 'webbrowser', 'androidapps', 'browser', 'cloudplay', 'tv', 'gallery', 'camera', 'clock', 'calendar', 'calculator', 'files', 'messenger', 'remote', 'settings', 'help', 'facebook', 'instagram', 'whatsapp'];
+  R.APP_ORDER = order;
 })();

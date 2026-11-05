@@ -51,6 +51,55 @@ A **única tela 2D** do Wpollo VR é a configuração inicial do VR Box. Depois 
 - **3D:** a profundidade é estimada pelo tamanho da mão na imagem. O modelo dá pontos 2D, então a profundidade
   dos dedos é uma aproximação.
 
+### Sensores e latência (VR Box)
+
+- **Fusão própria** dos sensores do celular:
+  - giroscópio integrado a 200 Hz;
+  - o acelerômetro corrige a inclinação (gravidade);
+  - o magnetômetro corrige a deriva do giro no eixo vertical (dá para desligar perto de metais).
+- **Predição** pela velocidade angular medida, compensando o tempo até a imagem chegar aos olhos.
+- **Aceleração da cabeça** nos jogos (`REGO.headAccel`). Pular de verdade faz pular nos obbies, e inclinar ou
+  agachar move a câmera alguns centímetros.
+- **Altura da cabeça até o chão:** no APK, usa o **barômetro** (Altura (chão) na central de controle: primeiro o
+  celular no chão, depois na cabeça). O magnetômetro mede campo magnético, não distância, então não serve para isso.
+- **Latência:**
+  - canvas WebGL `desynchronized` (o quadro vai direto para a tela, sem a fila de composição);
+  - service worker que busca o código na rede primeiro (nunca mistura versões) e guarda os assets pesados em cache.
+
+### Vídeos, Navegador e Apps Android
+
+- **Vídeos (YouTube por código aberto):**
+  - APK: **NewPipeExtractor**, que busca e extrai direto no aparelho, sem conta.
+  - Site: instâncias **Invidious/Piped**. As públicas costumam bloquear; dá para usar a sua própria.
+  - Modos de exibição: **Cinema** (cinema real em 360° com o telão encaixado), **Sala cinza** (obra de concreto
+    vazia, foto real) e **360°**.
+- **Navegador:**
+  - APK: uma página real (WebView fora da tela) aparece dentro do VR, com toque, rolagem, teclado e
+    voltar/avançar, mais o botão **Wolvic** para abrir no navegador XR aberto.
+  - Oculus Go: o Wolvic não roda nele; os sites WebXR abrem em tela cheia.
+- **Apps Android em janelas (APK + Shizuku, experimental):**
+  - O Shizuku dá permissão de shell sem root: ativa janelas livres, força apps redimensionáveis e abre cada app
+    num **display virtual próprio** (MediaProjection).
+  - A janela no VR pode ser Retrato, Paisagem ou Tablet, e várias ficam abertas ao mesmo tempo.
+  - Toques, rolagem, texto e Voltar/Início são enviados por `input -d <display>`.
+  - Requisitos: app **Shizuku** instalado e iniciado, e aceitar a captura de tela uma vez.
+- **Tela cheia:** botão na central de controle (VR Box) e botão de maximizar em cada janela, em qualquer modo.
+- **Toque direto com o indicador:** encoste a ponta do dedo nos painéis, como numa tela. Um comitê de 6 detectores
+  vota para confirmar o clique:
+  1. o dedo atravessou o plano do painel (obrigatório);
+  2. a deriva lateral ficou abaixo de 2,5 cm, para não confundir com arrasto (obrigatório);
+  3. havia velocidade em direção ao painel;
+  4. o indicador estava esticado;
+  5. os outros dedos estavam dobrados;
+  6. o modelo estava confiante nos pontos do dedo.
+
+  São precisos pelo menos 5 votos, e o dedo precisa recuar antes do próximo toque. Perto de um painel, o
+  rastreador entra em **modo foco**: desliga o detector, processa só a mão que aponta (na NPU, quando houver) e usa
+  um recorte mais justo, para mais precisão e menos latência. Um anel mostra onde o dedo vai tocar; com o APK, o
+  celular vibra a cada toque.
+- **Mãos rastreadas realistas:** a malha de mão articulada com pele é movida pelos 21 pontos rastreados. Estilos:
+  pele, luva cortada Clássica ou Fofinha (pelúcia só nas áreas da luva).
+
 ## Interface
 
 O Início tem três painéis em volta de você, no estilo da referência:

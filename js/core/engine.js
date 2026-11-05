@@ -53,7 +53,12 @@
 
   R.init = function () {
     var canvas = document.getElementById('c');
-    renderer = new THREE.WebGLRenderer({
+    // contexto "desynchronized": no Android o quadro vai direto para a tela, sem a fila de composição
+    // do navegador (menos ~1 quadro de latência). xrCompatible evita recriar o contexto ao entrar no VR.
+    var attrs = { antialias: !!R.settings.msaa, alpha: false, stencil: false, depth: true, powerPreference: 'high-performance',
+      preserveDrawingBuffer: false, desynchronized: true, xrCompatible: true };
+    var gl = null; try { gl = canvas.getContext('webgl2', attrs) || canvas.getContext('webgl', attrs); } catch (e) { gl = null; }
+    renderer = new THREE.WebGLRenderer(gl ? { canvas: canvas, context: gl } : {
       canvas: canvas, antialias: !!R.settings.msaa, alpha: false, stencil: false,
       depth: true, powerPreference: 'high-performance', preserveDrawingBuffer: false
     });

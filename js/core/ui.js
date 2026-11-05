@@ -177,6 +177,7 @@
       if (P.onTick) P.onTick(dt, P);
       if (P.enabled && visibleInScene(P.mesh)) { meshes.push(P.mesh); if (P.dirty) P.redraw(); }
     }
+    ui._meshes = meshes.slice();
     var pts = R.input.pointers, hovered = {};
     for (var k = 0; k < pts.length; k++) {
       var p = pts[k];
@@ -250,6 +251,23 @@
     return { px: (loc.x / P.w + 0.5) * P.cw, py: (0.5 - loc.y / P.h) * P.ch, point: pt };
   }
 
+  // toque direto: acha o painel sob a ponta do dedo (coordenadas locais; z = distância à frente da superfície)
+  var tl = new THREE.Vector3();
+  ui.touchProbe = function (pt) {
+    var best = null, ms = ui._meshes || [];
+    for (var i = 0; i < ms.length; i++) {
+      var m = ms[i], P = m.userData.panel; tl.copy(pt); m.worldToLocal(tl);
+      var sx = m.getWorldScale(new THREE.Vector3()).x; tl.z *= sx;
+      if (Math.abs(tl.x) > P.w / 2 || Math.abs(tl.y) > P.h / 2 || tl.z < -0.05 || tl.z > 0.12) continue;
+      if (!best || Math.abs(tl.z) < Math.abs(best.z)) { var px = (tl.x / P.w + 0.5) * P.cw, py = (0.5 - tl.y / P.h) * P.ch; best = { P: P, z: tl.z, px: px, py: py, item: P.hit(px, py) }; }
+    }
+    return best;
+  };
+  ui.touchClick = function (r) {
+    if (!r || !r.item) return false; var it = r.item;
+    R.sfx.play('click'); if (it.onClick) it.onClick(r.px - it.x, r.py - it.y, null); if (it.onDrag) it.onDrag(r.px, r.py, null, null, true);
+    r.P.dirty = true; return true;
+  };
   ui.toast = function (msg, secs) {
     var words = String(msg).split(' '), lines = [], cur = '';
     for (var i = 0; i < words.length; i++) { if ((cur + ' ' + words[i]).length > 44 && cur) { lines.push(cur); cur = words[i]; } else cur = cur ? cur + ' ' + words[i] : words[i]; }

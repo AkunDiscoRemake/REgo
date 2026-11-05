@@ -29,7 +29,7 @@
   $('backsplash').addEventListener('click', function () { form.hidden = true; splash.hidden = false; });
   if (apk || (isPhone && !/Pacific/.test(navigator.userAgent))) { $('openbox').textContent = '📱 Configurar VR Box'; if (apk) showBox(); }
   var VB = R.vrbox.cfg, HT = R.handtrack.cfg;
-  var MAP = { track: [VB, 'track'], distortion: [VB, 'distortion', 'bool'], ipd: [VB, 'ipd', 'num'], fov: [VB, 'fov', 'num'], predictMs: [VB, 'predictMs', 'num'], scale: [VB, 'scale', 'num'],
+  var MAP = { track: [VB, 'track'], distortion: [VB, 'distortion', 'bool'], ipd: [VB, 'ipd', 'num'], fov: [VB, 'fov', 'num'], predictMs: [VB, 'predictMs', 'num'], scale: [VB, 'scale', 'num'], useMag: [VB, 'useMag', 'bool'], accelMove: [VB, 'accelMove', 'bool'],
     engine: [HT, 'engine'], async: [HT, 'async', 'bool'], filter: [HT, 'filter'], minCutoff: [HT, 'minCutoff', 'num'], beta: [HT, 'beta', 'num'], kalmanQ: [HT, 'kalmanQ', 'num'],
     predictMs_h: [HT, 'predictMs', 'num'], camRes: [HT, 'camRes'], detEvery: [HT, 'detEvery', 'num'], maxHands: [HT, 'maxHands', 'num'], camFov: [HT, 'camFov', 'num'] };
   function fill() {
@@ -38,7 +38,7 @@
       el.value = m[2] === 'bool' ? (v ? '1' : '0') : String(v);
       var out = el.parentNode.querySelector('output'); if (out) { out.textContent = el.value; el.oninput = function () { out.textContent = el.value; }; }
     });
-    form.elements.handStyle.value = R.settings.handStyle === 'fofinho' ? 'fofinho' : 'classico';
+    form.elements.handStyle.value = /fofinho|classico/.test(R.settings.handStyle) ? R.settings.handStyle : 'realista';
     form.elements.htOn.value = R.store.get('htOn', true) ? '1' : '0';
     var info = $('npuinfo');
     info.textContent = ('ml' in navigator ? 'WebNN detectado: a NPU pode ser usada. ' : 'Este navegador não expõe WebNN: a opção NPU cai automaticamente para GPU ou CPU. ') +
@@ -52,7 +52,9 @@
     R.handtrack.save(); R.handtrack.applyStyle();
     var mr = form.elements.mr.value === '1';
     started();
-    R.vrbox.start().then(function () {
+    var go;
+    try { go = R.vrbox.start(); } catch (e) { document.body.classList.remove('started'); alert('Falha ao iniciar o VR Box: ' + e.message); return; }
+    go.then(function () {
       R.input.refresh();
       if (htOn) R.handtrack.start();
       if (mr) R.vrbox.togglePassthrough();
@@ -60,5 +62,10 @@
     });
   });
   // service worker: cache offline => abre instantâneo
-  if ('serviceWorker' in navigator && location.protocol === 'https:' && !apk) navigator.serviceWorker.register('sw.js').catch(function () {});
+  if ('serviceWorker' in navigator && location.protocol === 'https:' && !apk) {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+    // se uma versão nova assumir antes de começar, recarrega uma vez (evita misturar versões)
+    var had = !!navigator.serviceWorker.controller, reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () { if (had && !reloaded && !document.body.classList.contains('started')) { reloaded = true; location.reload(); } });
+  }
 })();

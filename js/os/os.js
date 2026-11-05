@@ -59,7 +59,7 @@
   var CATS = ['Todos', 'Destaques', 'Ação', 'Esporte', 'Física', 'Puzzle', 'Música', 'Relax', 'Corrida'];
   var NAV = [['home', 'house', 'Início'], ['library', 'layout-grid', 'Biblioteca'], ['hands', 'hand', 'Modelos de mãos'], ['env', 'sun', 'Ambiente'],
     ['video', 'video', 'Vídeo'], ['shots', 'image', 'Capturas'], ['settings', 'sliders-horizontal', 'Ajustes'], ['about', 'info', 'Sobre']];
-  var APPICON = { chat: ['message-square', '#30a46c'], store: ['store', '#8a3cf0'], browser: ['globe', '#2f7bf6'], cloudplay: ['cloud', '#3a3f4b'], tv: ['tv', '#e5484d'], gallery: ['image', '#f2994a'],
+  var APPICON = { videos: ['play', '#e5484d'], webbrowser: ['globe', '#2f7bf6'], androidapps: ['layout-grid', '#30a46c'], chat: ['message-square', '#30a46c'], store: ['store', '#8a3cf0'], browser: ['globe', '#2f7bf6'], cloudplay: ['cloud', '#3a3f4b'], tv: ['tv', '#e5484d'], gallery: ['image', '#f2994a'],
     camera: ['camera', '#ff5d8f'], clock: ['clock', '#30a46c'], calendar: ['calendar', '#e5484d'], calculator: ['calculator', '#5f6b7a'], files: ['folder', '#2f7bf6'],
     messenger: ['message-square', '#8a3cf0'], remote: ['monitor', '#0ea5a4'], settings: ['settings', '#5f6b7a'], help: ['circle-help', '#2f7bf6'],
     facebook: ['globe', '#1877f2'], instagram: ['aperture', '#d62976'], whatsapp: ['message-square', '#25d366'] };
@@ -114,9 +114,9 @@
         P.area('rec' + r, X + 4, Y, cw - 8, 110, function () { os.launch(g.id); });
       })(recent[r], r);
       ui.text(x, 'Apps', 40, 310, 22, { weight: 700, color: 'rgba(255,255,255,0.8)' });
-      var cols = 9, gx = (W - 60) / cols, S = 84;
+      var cols = 10, gx = (W - 60) / cols, S = 76;
       R.apps.forEach(function (a, i) {
-        var cx = 30 + (i % cols) * gx + gx / 2, cy = 330 + Math.floor(i / cols) * 140, hov = P.hover === 'app' + a.id;
+        var cx = 30 + (i % cols) * gx + gx / 2, cy = 326 + Math.floor(i / cols) * 128, hov = P.hover === 'app' + a.id;
         appTile(x, a, cx - S / 2, cy, S, hov);
         ui.text(x, a.name, cx, cy + S + 22, 16, { align: 'center', maxW: gx - 4, color: 'rgba(255,255,255,0.85)' });
         P.area('app' + a.id, cx - gx / 2, cy, gx, S + 40, function () { os.openApp(a.id); });
@@ -175,8 +175,9 @@
     } else if (st.tab === 'video') {
       header(x, 'Vídeo', 'Cinema gigante no seu ambiente');
       P.button('tv', 40, 130, W - 80, 90, 'Abrir TV / cinema', function () { os.openApp('tv'); }, { lucide: 'tv', align: 'left', r: 22, px: 24 });
-      P.button('br', 40, 236, W - 80, 90, 'Navegador WebXR', function () { os.openApp('browser'); }, { lucide: 'globe', align: 'left', r: 22, px: 24 });
-      P.button('cp', 40, 342, W - 80, 90, 'Cloud Play', function () { os.openApp('cloudplay'); }, { lucide: 'cloud', align: 'left', r: 22, px: 24 });
+      P.button('yt', 40, 236, W - 80, 90, 'Vídeos (YouTube aberto): cinema, sala cinza e 360°', function () { os.openApp('videos'); }, { lucide: 'play', align: 'left', r: 22, px: 22 });
+      P.button('br', 40, 342, W - 80, 90, 'Navegador', function () { os.openApp(R.browserNative && R.browserNative() ? 'webbrowser' : 'browser'); }, { lucide: 'globe', align: 'left', r: 22, px: 24 });
+      P.button('cp', 40, 448, W - 80, 90, 'Cloud Play', function () { os.openApp('cloudplay'); }, { lucide: 'cloud', align: 'left', r: 22, px: 24 });
     } else if (st.tab === 'shots') {
       header(x, 'Capturas', R.capture.list().length + ' imagem(ns)');
       P.button('take', W - 300, 40, 260, 56, 'Tirar captura', function () { R.capture.take(); }, { lucide: 'camera', align: 'left', px: 20, fill: ui.ACCENT });
@@ -216,13 +217,16 @@
       ['torch', 'flashlight', 'Lanterna', vb && R.vrbox.torchOn, function () { if (vb) R.vrbox.toggleTorch(); else ui.toast('Lanterna: só no modo VR Box (celular)'); }],
       ['mr', 'scan-eye', 'Realidade mista', vb && R.vrbox.passthrough, function () { if (vb) R.vrbox.togglePassthrough(); else ui.toast('Realidade mista: só no modo VR Box'); }],
       ['ht', 'hand', 'Mãos', R.handtrack && R.handtrack.running(), function () { if (R.handtrack && R.handtrack.supported()) { if (R.handtrack.running()) R.handtrack.stop(); else R.handtrack.start(); } else ui.toast('Hand tracking: modo VR Box'); }],
-      ['fps', 'circle-dot', 'FPS', !!R.settings.showFps, function () { R.settings.showFps = !R.settings.showFps; R.saveSettings(); }]];
+      ['fps', 'circle-dot', 'FPS', !!R.settings.showFps, function () { R.settings.showFps = !R.settings.showFps; R.saveSettings(); }],
+      ['full', 'monitor', 'Tela cheia', vb ? !!document.fullscreenElement : !!os.maxed, function () { if (vb) R.vrbox.toggleFullscreen(); else { var w = os.windows[os.windows.length - 1]; if (w) os.toggleMax(w); else ui.toast('Abra uma janela para maximizar'); } }],
+      ['floor', 'layers', 'Altura (chão)', false, function () { R.vrbox.calibrateFloor(R.vrbox.p0 ? 'head' : 'floor'); }],
+      ['wolvic', 'globe', 'Navegador', false, function () { os.openApp(R.browserNative && R.browserNative() ? 'webbrowser' : 'browser'); }]];
     var tw = (P.cw - 50) / 3;
     tiles.forEach(function (t, i) {
-      P.button('t' + t[0], 18 + (i % 3) * tw, 190 + Math.floor(i / 3) * 128, tw - 8, 118, t[2], t[4], { active: t[3], lucide: t[1], r: 26, px: 17, iconSize: 32 });
+      P.button('t' + t[0], 18 + (i % 3) * tw, 180 + Math.floor(i / 3) * 104, tw - 8, 96, t[2], t[4], { active: t[3], lucide: t[1], r: 24, px: 16, iconSize: 28 });
     });
-    os.slider(P, x, 'vol', 'Volume', 30, 460, P.cw - 60, R.settings.volume, 0, 1, function (v) { R.settings.volume = v; R.sfx.setVolume(v); }, function (v) { return Math.round(v * 100) + '%'; });
-    os.slider(P, x, 'bri', 'Brilho', 30, 560, P.cw - 60, R.settings.brightness === undefined ? 1 : R.settings.brightness, 0.3, 1, function (v) { R.settings.brightness = v; os.applyBrightness(); }, function (v) { return Math.round(v * 100) + '%'; });
+    os.slider(P, x, 'vol', 'Volume', 30, 500, P.cw - 60, R.settings.volume, 0, 1, function (v) { R.settings.volume = v; R.sfx.setVolume(v); }, function (v) { return Math.round(v * 100) + '%'; });
+    os.slider(P, x, 'bri', 'Brilho', 30, 590, P.cw - 60, R.settings.brightness === undefined ? 1 : R.settings.brightness, 0.3, 1, function (v) { R.settings.brightness = v; os.applyBrightness(); }, function (v) { return Math.round(v * 100) + '%'; });
     P.state.min = d.getMinutes(); P.state.fps = R.fps;
   }
   // brilho: esfera escura em volta da cabeça (custo ~0)
@@ -237,6 +241,7 @@
   os.init = function () {
     home = new THREE.Group(); home.name = 'home'; R.scene.add(home); os.home = home;
     buildHomeEnv();
+    R.apps.sort(function (a, b) { var o = R.APP_ORDER || []; return (o.indexOf(a.id) + 1 || 99) - (o.indexOf(b.id) + 1 || 99); });
     for (var i = 0; i < R.apps.length; i++) { var a = R.apps[i]; a.iconObj = ui.genIcon('app' + a.id, (APPICON[a.id] || [0, '#5f6b7a'])[1], '#1a1c24', ''); }
 
     // menu lateral, conteúdo e central de controle, inclinados em volta do usuário
@@ -244,7 +249,7 @@
     sidePanel.mesh.position.set(-1.3, 1.45, -1.62); sidePanel.mesh.rotation.y = 0.62; home.add(sidePanel.mesh);
     mainPanel = new ui.Panel({ w: 1.6, h: 1.12, res: 560, render: renderMain, onSwipe: function (d) { if (st.tab === 'library') st.page = Math.max(0, Math.min((mainPanel.state.pages || 1) - 1, st.page + d)); } });
     mainPanel.mesh.position.set(0, 1.45, -2.05); home.add(mainPanel.mesh); os.mainPanel = mainPanel;
-    statusPanel = new ui.Panel({ w: 0.62, h: 1.12, res: 560, render: renderStatus, onTick: function (dt, P) { var d = new Date(); if (P.state.min !== d.getMinutes() || P.state.fps !== R.fps) P.dirty = true; } });
+    statusPanel = new ui.Panel({ w: 0.62, h: 1.25, res: 560, render: renderStatus, onTick: function (dt, P) { var d = new Date(); if (P.state.min !== d.getMinutes() || P.state.fps !== R.fps) P.dirty = true; } });
     statusPanel.mesh.position.set(1.3, 1.45, -1.62); statusPanel.mesh.rotation.y = -0.62; home.add(statusPanel.mesh);
     os.applyBrightness();
 
@@ -277,7 +282,11 @@
     if (!app) return;
     for (var j = 0; j < os.windows.length; j++) if (os.windows[j].app === app) { os.focusWindow(os.windows[j]); return; }
     if (app.launch) { app.launch(); return; }
-    if (os.windows.length >= 3) os.closeWindow(os.windows[0]);
+    return os.openWindow(app);
+  };
+  // abre uma janela para qualquer definição de app (também usada por apps Android e janelas dinâmicas)
+  os.openWindow = function (app) {
+    if (os.windows.length >= (app.maxWin || 4)) os.closeWindow(os.windows[0]);
     var win = { app: app, st: {}, yaw: 0, y: 1.45 };
     var size = app.size || [1.1, 0.8];
     var bar = 70;
@@ -289,6 +298,7 @@
         app.render(x, P, win, H);
         // controles da janela (visionOS: barra embaixo + fechar)
         P.button('close', P.cw / 2 - 110, H + 18, 40, 40, '✕', function () { os.closeWindow(win); }, { px: 18 });
+        P.button('max', P.cw / 2 + 120, H + 18, 40, 40, '', function () { os.toggleMax(win); }, { lucide: 'monitor', iconSize: 22 });
         P.button('bar', P.cw / 2 - 60, H + 26, 170, 24, '', null, { r: 12, fill: P.hover === 'bar' ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.4)',
           onDrag: function (px, py, p) { dragWindow(win, p); } });
       },
@@ -298,13 +308,13 @@
     win.panel.state = win.st;
     // posiciona em leque ao lado da janela principal
     // janelas abrem na frente do Início (mais perto), em leque se houver várias
-    var slots = [0, -0.42, 0.42], used = os.windows.map(function (w) { return w.slot; }), slot = 0;
+    var slots = [0, -0.42, 0.42, -0.84, 0.84], used = os.windows.map(function (w) { return w.slot; }), slot = 0;
     for (var s = 0; s < slots.length; s++) if (used.indexOf(s) < 0) { slot = s; break; }
     win.slot = slot; win.yaw = slots[slot]; win.dist = slot === 0 ? 1.55 : 1.7; win.y = 1.4;
     placeWindow(win);
     home.add(win.panel.mesh);
     os.windows.push(win);
-    if (app.open) app.open(win);
+    if (app.open && !app._reopen) app.open(win);
     mainPanel.dirty = true;
     return win;
   };
@@ -320,10 +330,29 @@
     win.y = Math.max(0.6, Math.min(2.6, hp.y + d.y * win.dist - win.panel.h / 2 + 0.05));
     placeWindow(win);
   }
+  // "tela cheia" dentro do VR: a janela cresce e envolve a visão (cinema pessoal)
+  os.toggleMax = function (win) {
+    win.max = !win.max; os.maxed = win.max;
+    if (win.max) { win._s = { yaw: win.yaw, y: win.y, dist: win.dist }; win.yaw = R.headYaw(); win.dist = 1.9; win.y = R.settings.height; win.panel.mesh.scale.setScalar(2.4); }
+    else { if (win._s) { win.yaw = win._s.yaw; win.y = win._s.y; win.dist = win._s.dist; } win.panel.mesh.scale.setScalar(1); }
+    placeWindow(win); if (win.kb) { os.closeKeyboard(win); }
+    statusPanel.dirty = true;
+  };
   os.focusWindow = function (win) { R.sfx.play('pop'); win.panel.mesh.scale.setScalar(1.06); setTimeout(function () { win.panel.mesh.scale.setScalar(1); }, 150); };
+  // janela redimensionável: recria o painel com o novo tamanho mantendo estado e posição
+  os.resizeWindow = function (win, w, h) {
+    var keep = { st: win.st, yaw: win.yaw, y: win.y, dist: win.dist, slot: win.slot };
+    win.resizing = true; os.closeWindow(win);
+    var app = win.app, size0 = app.size; app.size = [w, h]; app._reopen = true;
+    var nw = os.openWindow(app); app.size = size0; app._reopen = false;
+    nw.st = keep.st; nw.panel.state = keep.st; nw.yaw = keep.yaw; nw.y = keep.y; nw.dist = keep.dist; nw.slot = keep.slot;
+    nw.panel.mesh.position.set(-Math.sin(nw.yaw) * nw.dist, nw.y, -Math.cos(nw.yaw) * nw.dist); nw.panel.mesh.rotation.set(0, nw.yaw, 0);
+    if (app.resized) app.resized(nw, w, h);
+    return nw;
+  };
   os.closeWindow = function (win) {
     var i = os.windows.indexOf(win); if (i < 0) return;
-    if (win.app.close) win.app.close(win);
+    if (win.app.close && !win.resizing) win.app.close(win);
     if (win.kb) { win.kb.dispose(); win.kb = null; }
     win.panel.dispose(); os.windows.splice(i, 1); mainPanel.dirty = true;
   };

@@ -111,9 +111,73 @@
     this.cuff.position.copy(p[0]); this.cuff.lookAt(p[9]); this.cuff.scale.setScalar(H.cfg.handScale * (fluffy ? 1.3 : 1));
   };
 
+  // ------------------------------------------------------------ mão realista (malha com pele) movida pelos pontos
+  var MAP = ['wrist', 'thumb-metacarpal', 'thumb-phalanx-proximal', 'thumb-phalanx-distal', 'thumb-tip'];
+  ['index-finger', 'middle-finger', 'ring-finger', 'pinky-finger'].forEach(function (f) { MAP.push(f + '-phalanx-proximal', f + '-phalanx-intermediate', f + '-phalanx-distal', f + '-tip'); });
+  var NEXT = { 0: 9, 1: 2, 2: 3, 3: 4, 4: 4 }; for (var fi = 0; fi < 4; fi++) { var b0 = 5 + fi * 4; NEXT[b0] = b0 + 1; NEXT[b0 + 1] = b0 + 2; NEXT[b0 + 2] = b0 + 3; NEXT[b0 + 3] = b0 + 3; }
+  function SkinHand(side) {
+    var src = R.assets.models[side === 'left' ? 'hand_left' : 'hand_right']; this.ok = !!src; if (!src) return;
+    this.root = THREE.SkeletonUtils ? THREE.SkeletonUtils.clone(src) : src.clone(true);
+    var j = this.j = {}, self = this;
+    this.root.traverse(function (o) {
+      if (o.name && /wrist|finger|thumb/.test(o.name)) j[o.name] = { o: o, p: o.position.clone(), q: o.quaternion.clone() };
+      if (o.isSkinnedMesh) { self.mesh = o; o.frustumCulled = false; }
+    });
+    var g = this.mesh.geometry = this.mesh.geometry.clone();
+    this.mesh.material = new THREE.MeshLambertMaterial({ vertexColors: true, skinning: true });
+    // luva: vértices presos principalmente ao punho/metacarpos/falange proximal
+    var si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bones = this.mesh.skeleton.bones, n = si.count;
+    this.glove = new Float32Array(n);
+    for (var v = 0; v < n; v++) {
+      var best = 0, bw = -1, W4 = [sw.getX(v), sw.getY(v), sw.getZ(v), sw.getW(v)], I4 = [si.getX(v), si.getY(v), si.getZ(v), si.getW(v)]; for (var k = 0; k < 4; k++) { if (W4[k] > bw) { bw = W4[k]; best = I4[k]; } }
+      var nm = (bones[best] && bones[best].name) || '';
+      this.glove[v] = /wrist|metacarpal|phalanx-proximal/.test(nm) ? 1 : 0;
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+    g.setAttribute('gloveMask', new THREE.BufferAttribute(this.glove, 1));
+    // pelúcia (estilo Fofinho): casca inflada pela normal, só nas áreas da luva, com recortes de ruído
+    var fur = new THREE.MeshLambertMaterial({ color: '#ffffff', skinning: true, transparent: true, depthWrite: false });
+    fur.onBeforeCompile = function (sh) {
+      sh.vertexShader = 'attribute float gloveMask; varying float vGlove; varying vec3 vP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n transformed += objectNormal * 0.0045 * gloveMask; vGlove = gloveMask; vP = position * 900.0;');
+      sh.fragmentShader = 'varying float vGlove; varying vec3 vP;\n' + sh.fragmentShader.replace('#include <alphatest_fragment>', 'float nz = fract(sin(dot(floor(vP), vec3(12.9898,78.233,37.719))) * 43758.5453); if (vGlove < 0.5 || nz < 0.45) discard;\n#include <alphatest_fragment>');
+    };
+    this.fur = new THREE.SkinnedMesh(g, fur); this.fur.bind(this.mesh.skeleton, this.mesh.bindMatrix); this.fur.frustumCulled = false;
+    this.mesh.parent.add(this.fur);
+    var a = j['index-finger-phalanx-proximal'].p, b = j['pinky-finger-phalanx-proximal'].p, w0 = j.wrist.p;
+    this.rn = new V3().subVectors(a, w0).cross(new V3().subVectors(b, w0)).normalize();
+    this.restPos = MAP.map(function (nm) { return j[nm].p.clone(); });
+    this.applyStyle();
+  }
+  SkinHand.prototype.applyStyle = function () {
+    if (!this.ok) return;
+    var st = R.settings.handStyle, skin = new THREE.Color(R.hands ? R.hands.skin : '#d9a383');
+    var glove = new THREE.Color(R.settings.gloveColor || (st === 'fofinho' ? '#ffb3d9' : '#1d1f26')), useGlove = st === 'classico' || st === 'fofinho';
+    var c = this.mesh.geometry.attributes.color;
+    for (var v = 0; v < c.count; v++) { var col = useGlove && this.glove[v] ? glove : skin; c.setXYZ(v, col.r, col.g, col.b); }
+    c.needsUpdate = true; this.fur.visible = st === 'fofinho'; this.fur.material.color.copy(glove);
+  };
+  var bR = new THREE.Matrix4(), bC = new THREE.Matrix4(), rot = new THREE.Matrix4(), qR = new THREE.Quaternion();
+  function basis(m, d, n) { var nn = n.clone().addScaledVector(d, -n.dot(d)).normalize(); var t = new V3().crossVectors(d, nn); m.makeBasis(d, nn, t); return m; }
+  SkinHand.prototype.pose = function (pts) {
+    if (!this.ok) return;
+    var cn = new V3().subVectors(pts[5], pts[0]).cross(new V3().subVectors(pts[17], pts[0])).normalize();
+    for (var i = 0; i < 21; i++) {
+      var jj = this.j[MAP[i]]; if (!jj) continue;
+      var nx = NEXT[i], from = i === nx ? (i === 4 ? 3 : i - 1) : i, to = i === nx ? i : nx;
+      var rd = new V3().subVectors(this.restPos[to], this.restPos[from]).normalize(), cd = new V3().subVectors(pts[to], pts[from]).normalize();
+      if (!isFinite(cd.x) || cd.lengthSq() < 0.5) continue;
+      basis(bR, rd, this.rn); basis(bC, cd, cn); rot.multiplyMatrices(bC, bR.transpose()); qR.setFromRotationMatrix(rot);
+      jj.o.quaternion.copy(qR).multiply(jj.q); jj.o.position.copy(pts[i]);
+    }
+    // metacarpos (entre o punho e a junta da base) seguem o punho
+    var self = this;
+    ['index-finger', 'middle-finger', 'ring-finger', 'pinky-finger'].forEach(function (f, k) {
+      var m = self.j[f + '-metacarpal']; if (!m) return; m.o.position.lerpVectors(pts[0], pts[5 + k * 4], 0.3); m.o.quaternion.copy(self.j.wrist.o.quaternion);
+    });
+  };
   var hands = [new Hand('left'), new Hand('right')];
   H.hands = hands;
-  H.applyStyle = function () { hands.forEach(function (h) { h.applyStyle(); }); };
+  H.applyStyle = function () { hands.forEach(function (h) { h.applyStyle(); if (h.skin) h.skin.applyStyle(); }); };
 
   // ------------------------------------------------------------ 2D → 3D (câmera traseira ≈ olhos)
   var tmp = new V3(), headQ = new THREE.Quaternion(), headP = new V3();
@@ -159,7 +223,7 @@
       if (seen[side]) side = side === 'left' ? 'right' : 'left';
       seen[side] = true;
       var h = side === 'left' ? hands[0] : hands[1];
-      lift(h, hr.kp, W, Ht, t); filterHand(h, t); h.seen = t;
+      lift(h, hr.kp, W, Ht, t); filterHand(h, t); h.seen = t; h.sc = hr.sc;
     });
   }
   var tmpQ = new THREE.Quaternion(), m4 = new THREE.Matrix4();
@@ -169,10 +233,13 @@
     R.camera.updateMatrixWorld(true);
     hands.forEach(function (h, i) {
       var vis = h.loc && now - h.seen < 0.35;
-      h.g.visible = !!vis; if (!vis) { if (h.ptr) h.ptr.lost = true; return; }
+      h.g.visible = !!vis; if (h.skin && h.skin.ok) h.skin.root.visible = !!vis; if (!vis) { if (h.ptr) h.ptr.lost = true; return; }
       if (!h.g.parent) R.scene.add(h.g);
       for (var k = 0; k < 21; k++) h.pts[k].copy(h.loc[k]).applyMatrix4(R.camera.matrixWorld);
-      h.draw();
+      if (!h.skin && R.assets.models.hand_left && R.assets.models.hand_right) { h.skin = new SkinHand(h.side); if (h.skin.ok) R.scene.add(h.skin.root); }
+      var useSkin = h.skin && h.skin.ok && R.settings.handLook !== 'capsulas';
+      if (useSkin) { h.skin.root.visible = true; h.skin.pose(h.pts); [h.bG, h.bS, h.jG, h.jS, h.fz, h.palm, h.cuff].forEach(function (m) { m.visible = false; }); }
+      else { if (h.skin && h.skin.ok) h.skin.root.visible = false; [h.bG, h.bS, h.jG, h.jS, h.palm, h.cuff].forEach(function (m) { m.visible = true; }); h.draw(); }
       // ponteiro: do "ombro" passando pelo ponto da pinça
       if (!h.ptr) { h.ptr = R.input.makePointer(70 + i); h.ptr.isHand = true; }
       var head = R.camera.getWorldPosition(new V3()), yaw = R.headYaw();
@@ -185,10 +252,53 @@
       var dd = h.pts[4].distanceTo(h.pts[8]) / H.cfg.handScale;
       if (!R.input.joycon) { if (!h.pinch && dd < 0.025) h.pinch = true; else if (h.pinch && dd > 0.042) h.pinch = false; }
       else h.pinch = false;
-      h.ptr._handDown = h.pinch;
+      h.ptr._handDown = h.pinch && !h.touching;
+      poke(h, i);
       if (i === 0 && h.pinch) { h.pinchT += R.rawDt; if (h.pinchT > 1.0 && !h.menuFired) { h.menuFired = true; R.input._menuKey = true; } } else { h.pinchT = 0; h.menuFired = false; }
     });
   };
+
+  // ------------------------------------------------------------ toque direto com o indicador (comitê de detectores)
+  var ring = null, focusOn = false;
+  function setFocus(on, idx) {
+    if (on === focusOn) return; focusOn = on;
+    var c = { focus: on, focusPad: on ? 1.08 : 1.25, focusIdx: idx || 0 };
+    if (worker) worker.postMessage({ type: 'cfg', cfg: c }); else if (mainCore && mainCore.setCfg) mainCore.setCfg(c);
+  }
+  function angle(a, b, c) { var u = new V3().subVectors(b, a).normalize(), v = new V3().subVectors(c, b).normalize(); return Math.acos(Math.max(-1, Math.min(1, u.dot(v)))); }
+  function poke(h, i) {
+    var p = h.pts, tip = p[8], now = performance.now();
+    var hit = R.ui.touchProbe(tip);
+    h.touching = !!hit && hit.z < 0.08;
+    if (!ring) { ring = new THREE.Mesh(new THREE.RingBufferGeometry(0.008, 0.012, 24), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, depthTest: false })); ring.renderOrder = 70; R.scene.add(ring); }
+    var any = hands.some(function (q) { return q.touching; });
+    setFocus(any, i);
+    if (!hit) { if (!any) ring.visible = false; h.poke = null; return; }
+    // anel mostra onde o dedo vai tocar; fecha conforme aproxima
+    ring.visible = true; ring.position.copy(tip); ring.quaternion.copy(hit.P.mesh.getWorldQuaternion(new THREE.Quaternion()));
+    var k = Math.max(0.35, Math.min(1.6, hit.z / 0.05)); ring.scale.setScalar(k); ring.material.color.set(hit.item ? '#c9a2ff' : '#ffffff');
+    var st = h.poke || (h.poke = { prevZ: hit.z, armed: hit.z > 0.012, last: 0, t0: now, x0: hit.px, y0: hit.py });
+    var dt = Math.max(1, now - (st.tPrev || now)) / 1000, vz = (st.prevZ - hit.z) / dt; st.tPrev = now;
+    if (hit.z > 0.015) st.armed = true;            // histerese: rearma só ao recuar
+    if (hit.z > 0.03) { st.x0 = hit.px; st.y0 = hit.py; } // referência lateral = início da aproximação
+    if (st.armed && st.prevZ >= 0 && hit.z < 0) {
+      var votes = {
+        penetrou: true,
+        velocidade: vz > 0.06,
+        indicadorEsticado: angle(p[5], p[6], p[8]) < 0.75,
+        outrosDobrados: p[12].distanceTo(p[0]) < p[9].distanceTo(p[0]) * 1.35 || p[16].distanceTo(p[0]) < p[13].distanceTo(p[0]) * 1.35,
+        estavel: Math.hypot((hit.px - st.x0) / hit.P.cw * hit.P.w, (hit.py - st.y0) / hit.P.ch * hit.P.h) < 0.025, // < 2,5 cm de deriva lateral
+        confianca: !h.sc || (h.sc[8] + h.sc[7] + h.sc[6]) / 3 > 0.25
+      };
+      var ok = 0; for (var kk in votes) if (votes[kk]) ok++;
+      if (votes.penetrou && votes.estavel && ok >= 5 && now - st.last > 280) {
+        st.armed = false; st.last = now;
+        if (R.ui.touchClick(hit)) { ring.material.color.set('#7dff9c'); try { if (window.WpolloAndroid && WpolloAndroid.vibrate) WpolloAndroid.vibrate(15); else if (navigator.vibrate) navigator.vibrate(15); } catch (e) {} }
+      }
+      H.lastVotes = votes;
+    }
+    st.prevZ = hit.z;
+  }
 
   // ------------------------------------------------------------ captura de quadros
   var mainCore = null;
@@ -224,7 +334,8 @@
     }).then(function () { pump(); }, function (e) { stat = 'erro: ' + e.message; run = false; R.ui.toast('Câmera: ' + e.message, 4); });
   };
   function label(ep) { return /nnapi|npu/.test(ep) ? 'NPU' : /webgpu|gpu/.test(ep) ? 'GPU' : 'CPU'; }
-  H.stop = function () { run = false; ready = false; stat = 'desligado'; if (worker) { worker.terminate(); worker = null; } hands.forEach(function (h) { h.g.visible = false; }); };
+  H.stop = function () { run = false; ready = false; stat = 'desligado'; if (worker) { worker.terminate(); worker = null; } hands.forEach(function (h) { h.g.visible = false; if (h.skin && h.skin.ok) h.skin.root.visible = false; }); };
+  H._SkinHand = SkinHand; H._poke = function (h, i) { return poke(h, i); };
   var busy = false;
   function pump() {
     if (!run) return;

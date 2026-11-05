@@ -11,3 +11,6 @@
 | Mãos articuladas e modelo do controle do Go | WebXR Input Profiles | MIT |
 | Ícones de linha | Lucide (LUCIDE-LICENSE.txt) | ISC |
 | Logo Wpollo VR | fornecido pelo autor do projeto | — |
+| NewPipeExtractor v0.24.8 (só no APK) | TeamNewPipe | **GPL-3.0** — o APK distribuído fica sob GPL-3.0 |
+| Shizuku API 13.1.5 (só no APK) | RikkaApps | Apache-2.0 |
+| Fotos 360° de cinema e sala de concreto (cinema_hall, interior_construction) | Poly Haven | CC0 1.0 |

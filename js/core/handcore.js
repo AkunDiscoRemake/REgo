@@ -85,7 +85,7 @@
     });
   }
   function estimate(img, box) {
-    var cx = (box.x1 + box.x2) / 2, cy = (box.y1 + box.y2) / 2, side = Math.max(box.x2 - box.x1, box.y2 - box.y1) * 1.25, sc = POSE / side;
+    var cx = (box.x1 + box.x2) / 2, cy = (box.y1 + box.y2) / 2, side = Math.max(box.x2 - box.x1, box.y2 - box.y1) * (cfg.focusPad || 1.25), sc = POSE / side;
     xPose.setTransform(1, 0, 0, 1, 0, 0); xPose.fillStyle = '#000'; xPose.fillRect(0, 0, POSE, POSE);
     xPose.setTransform(sc, 0, 0, sc, POSE / 2 - cx * sc, POSE / 2 - cy * sc); xPose.drawImage(img, 0, 0);
     var px = xPose.getImageData(0, 0, POSE, POSE).data, n = POSE * POSE;
@@ -121,7 +121,9 @@
   C.process = function (img, W, H) {
     frameN++;
     var t0 = (G.performance || Date).now();
-    var needDet = !tracks.length || frameN % cfg.detEvery === 0;
+    // modo foco (dedo perto de um painel): sem detector, só a mão que aponta, recorte justo => mais precisão e menos latência
+    var needDet = !tracks.length || (!cfg.focus && frameN % cfg.detEvery === 0);
+    if (cfg.focus && tracks.length > 1) tracks = [tracks[cfg.focusIdx || 0] || tracks[0]];
     var boxesP = needDet ? detect(img, W, H).then(function (b) {
       // mantém rastros que o detector perdeu mas seguem confiáveis
       if (!b.length) return tracks.slice(0, cfg.maxHands);
@@ -138,6 +140,7 @@
     });
   };
 
+  C.setCfg = function (c) { for (var k in c) cfg[k] = c[k]; };
   // ------------------------------------------------------------ modo Worker
   if (typeof importScripts === 'function' && typeof window === 'undefined') {
     var busy = false;

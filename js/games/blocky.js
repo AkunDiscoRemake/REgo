@@ -30,6 +30,8 @@
   Platformer.prototype.step = function (dt) {
     var pl = R.player, g = this.g, pad = R.input.pad, i, b;
     if (this.finished) return;
+    // VR Box: dar um pulinho de verdade (acelerômetro detecta a cabeça subindo) = pular no jogo
+    if (R.vrbox && R.vrbox.active && R.vrbox.consume('jump') && this.onGround) { this.vy = this.jumpV; this.onGround = false; R.sfx.play('jump'); }
     this.t += dt;
     // plataformas móveis
     for (i = 0; i < this.blocks.length; i++) {

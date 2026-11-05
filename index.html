@@ -32,6 +32,9 @@
       <label>Campo de visão <input type="range" name="fov" min="70" max="115" step="1"><output></output></label>
       <label>Predição da cabeça (ms) <input type="range" name="predictMs" min="0" max="40" step="1"><output></output></label>
       <label>Resolução <input type="range" name="scale" min="0.75" max="2.5" step="0.05"><output></output></label>
+      <label>Magnetômetro corrige a deriva do giro <select name="useMag"><option value="1">Sim</option><option value="0">Não (perto de ímãs/metais)</option></select></label>
+      <label>Movimento da cabeça pelo acelerômetro <select name="accelMove"><option value="1">Sim (inclinar/agachar)</option><option value="0">Não</option></select></label>
+      <p class="hint">Fusão própria: giroscópio a 200 Hz + acelerômetro (gravidade) + magnetômetro (norte). Pular de verdade = pular nos jogos. Altura da cabeça até o chão: no APK, use "Altura (chão)" na central de controle (barômetro) — o magnetômetro mede campo magnético, não distância.</p>
     </fieldset>
     <fieldset><legend>Hand tracking</legend>
       <label>Ativar <select name="htOn"><option value="1">Sim</option><option value="0">Não</option></select></label>
@@ -45,7 +48,7 @@
       <label>Câmera <select name="camRes"><option>320x240</option><option>640x480</option><option>1280x720</option></select></label>
       <label>Detector a cada N quadros <input type="range" name="detEvery" min="1" max="30" step="1"><output></output></label>
       <label>Mãos <select name="maxHands"><option value="1">1</option><option value="2">2</option></select></label>
-      <label>Estilo da luva <select name="handStyle"><option value="classico">Clássico</option><option value="fofinho">Fofinho (peludinho)</option></select></label>
+      <label>Aparência das mãos <select name="handStyle"><option value="realista">Mão realista (pele)</option><option value="classico">Luva cortada Clássica</option><option value="fofinho">Luva cortada Fofinha (peludinha)</option></select></label>
       <label>Campo de visão da câmera <input type="range" name="camFov" min="50" max="90" step="1"><output></output></label>
       <p class="hint" id="npuinfo"></p>
     </fieldset>
@@ -82,6 +85,7 @@
 <script src="js/os/kit.js"></script>
 <script src="js/os/capture.js"></script>
 <script src="js/os/apps.js"></script>
+<script src="js/os/media.js"></script>
 <script src="js/os/os.js"></script>
 <!-- jogos -->
 <script src="js/games/bowling.js"></script>

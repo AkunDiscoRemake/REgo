@@ -9,7 +9,7 @@
   'use strict';
   var R = window.REGO, THREE = window.THREE;
   var V = R.vrbox = { active: false, passthrough: false, torchOn: false, mode: '3dof', stream: null, video: null };
-  var DEF = { ipd: 0.063, fov: 95, distortion: true, k1: 0.22, k2: 0.24, track: '3dof', predictMs: 18, scale: 1.4 };
+  var DEF = { ipd: 0.063, fov: 95, distortion: true, k1: 0.22, k2: 0.24, track: '3dof', predictMs: 18, scale: 1.4, useMag: true, accelMove: true };
   V.cfg = (function () { var c = R.store.get('vrbox', {}); for (var k in DEF) if (!(k in c)) c[k] = DEF[k]; return c; })();
   V.save = function () { R.store.set('vrbox', V.cfg); };
 
@@ -23,8 +23,10 @@
     V.save();
     R.sfx.resume();
     var de = document.documentElement;
-    try { (de.requestFullscreen || de.webkitRequestFullscreen).call(de, { navigationUI: 'hide' }); } catch (e) {}
-    try { screen.orientation.lock('landscape').catch(function () {}); } catch (e) {}
+    // tela cheia PRIMEIRO; só então o navegador aceita travar em paisagem
+    var fs = Promise.resolve();
+    try { var rq = de.requestFullscreen || de.webkitRequestFullscreen; if (rq && !document.fullscreenElement) fs = Promise.resolve(rq.call(de, { navigationUI: 'hide' })).catch(function () {}); } catch (e) {}
+    fs.then(function () { try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function () {}); } catch (e) {} });
     try { if (navigator.wakeLock) navigator.wakeLock.request('screen').catch(function () {}); } catch (e) {}
     if (window.WpolloAndroid && WpolloAndroid.keepScreenOn) try { WpolloAndroid.keepScreenOn(true); } catch (e) {}
     V.active = true;
@@ -36,58 +38,123 @@
     return Promise.resolve();
   };
 
-  // ---------------------------------------------------------------- cabeça 3DoF (baixa latência)
-  var qSensor = new THREE.Quaternion(), qPrev = new THREE.Quaternion(), tPrev = 0, tCur = 0, have = false;
-  var qWorld = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+  // ---------------------------------------------------------------- cabeça 3DoF: fusão própria (Mahony)
+  // giroscópio integrado a ~200 Hz; o acelerômetro corrige a inclinação (gravidade) e o magnetômetro corrige
+  // a deriva do giro em torno do eixo vertical. A predição usa a velocidade angular medida (não diferenças).
+  var qF = new THREE.Quaternion(), wF = new THREE.Vector3(), eI = new THREE.Vector3(), lastGT = 0, have = false;
+  var acc = new THREE.Vector3(0, 0, 9.81), mag = null, accOk = false;
+  var qWorld = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2); // mundo z-up -> three y-up
   var yawFix = new THREE.Quaternion();
+  V.headAccel = new THREE.Vector3(); V.headVel = new THREE.Vector3(); V.headOffset = new THREE.Vector3(); V.events = {};
+  R.headAccel = V.headAccel;
+  var KP = 1.2, KI = 0.02, KM = 0.6;
+  var vA = new THREE.Vector3(), vE = new THREE.Vector3(), eTot = new THREE.Vector3(), qi = new THREE.Quaternion(), tmpq = new THREE.Quaternion();
+  function fuse(gx, gy, gz, dt) {
+    eTot.set(0, 0, 0);
+    if (accOk) {
+      vA.copy(acc).normalize();
+      vE.set(0, 0, 1).applyQuaternion(qi.copy(qF).invert()); // gravidade estimada no referencial do aparelho
+      eTot.add(vA.clone().cross(vE).multiplyScalar(KP));
+    }
+    if (mag && V.cfg.useMag) {
+      var m = mag.clone().normalize(), h = m.clone().applyQuaternion(qF), bx = Math.hypot(h.x, h.y);
+      var w = new THREE.Vector3(0, bx, h.z).applyQuaternion(qi.copy(qF).invert()); // norte magnético estimado
+      var em = m.cross(w); var up = new THREE.Vector3(0, 0, 1).applyQuaternion(qi);
+      eTot.addScaledVector(up, em.dot(up) * KM); // só a componente de guinada (yaw) — não mexe na inclinação
+    }
+    eI.addScaledVector(eTot, KI * dt);
+    wF.set(gx, gy, gz).add(eTot).add(eI);
+    var ang = wF.length() * dt;
+    if (ang > 1e-9) { tmpq.setFromAxisAngle(wF.clone().normalize(), ang); qF.multiply(tmpq); qF.normalize(); }
+    have = true;
+  }
+  function initFromAccel() {
+    // orientação inicial a partir da gravidade (sem esperar a convergência)
+    var g = acc.clone().normalize(); qF.setFromUnitVectors(g, new THREE.Vector3(0, 0, 1)); have = true;
+  }
   function startSensors() {
-    V.mode = '3dof';
-    var ok = false;
+    V.mode = '3dof'; var ok = false;
     try {
-      if (window.RelativeOrientationSensor) {
-        var s = new RelativeOrientationSensor({ frequency: 120, referenceFrame: 'screen' });
-        s.addEventListener('reading', function () {
-          qPrev.copy(qSensor); tPrev = tCur; tCur = performance.now();
-          qSensor.fromArray(s.quaternion); qSensor.premultiply(qWorld); have = true;
+      if (window.Gyroscope && window.Accelerometer) {
+        var hz = 200, gyro = new Gyroscope({ frequency: hz, referenceFrame: 'screen' }), ac = new Accelerometer({ frequency: 100, referenceFrame: 'screen' });
+        ac.addEventListener('reading', function () { acc.set(ac.x, ac.y, ac.z); if (!accOk) { accOk = true; if (!have) initFromAccel(); } updateMotion(); });
+        gyro.addEventListener('reading', function () {
+          var t = gyro.timestamp / 1000; var dt = lastGT ? Math.min(0.05, t - lastGT) : 0; lastGT = t;
+          if (dt > 0) fuse(gyro.x, gyro.y, gyro.z, dt);
+          V.lastSensor = performance.now();
         });
-        s.addEventListener('error', function () { if (!have) fallback(); });
-        s.start(); ok = true; V.sensor = s;
+        gyro.addEventListener('error', function () { if (!have) fallback(); });
+        gyro.start(); ac.start(); ok = true; V.sensor = 'fusão própria (giroscópio ' + hz + ' Hz + acelerômetro' + (window.Magnetometer ? ' + magnetômetro' : '') + ')';
+        if (window.Magnetometer && V.cfg.useMag) { try { var mg = new Magnetometer({ frequency: 30, referenceFrame: 'screen' }); mg.addEventListener('reading', function () { mag = new THREE.Vector3(mg.x, mg.y, mg.z); }); mg.start(); } catch (e) {} }
+        V.fusion = true;
       }
     } catch (e) { ok = false; }
     if (!ok) fallback();
   }
-  // deviceorientation (evento): mesma matemática do DeviceOrientationControls
+  // aceleração linear da cabeça em coordenadas do mundo (para jogos: "para onde a cabeça acelera")
+  var gW = new THREE.Vector3(0, 0, 9.81), aw = new THREE.Vector3(), lastMT = 0;
+  function updateMotion() {
+    var t = performance.now() / 1000, dt = lastMT ? Math.min(0.05, t - lastMT) : 0; lastMT = t;
+    aw.copy(acc).applyQuaternion(qF).sub(gW); // z-up, sem gravidade
+    aw.set(aw.x, aw.z, -aw.y).applyQuaternion(yawFix); // -> y-up do three
+    V.headAccel.lerp(aw, 0.35);
+    if (dt > 0) {
+      // velocidade e deslocamento com "vazamento": só gestos curtos (agachar, pular, inclinar), sem deriva
+      V.headVel.addScaledVector(V.headAccel, dt).multiplyScalar(Math.exp(-dt * 3));
+      V.headOffset.addScaledVector(V.headVel, dt).multiplyScalar(Math.exp(-dt * 1.5));
+      V.headOffset.clampLength(0, 0.25);
+      if (V.headAccel.y > 7 && !V.events.jumpLock) { V.events.jump = true; V.events.jumpLock = true; setTimeout(function () { V.events.jumpLock = false; }, 500); }
+    }
+  }
+  V.consume = function (ev) { if (V.events[ev]) { V.events[ev] = false; return true; } return false; };
+  // reserva: sensor de orientação pronto do sistema ou evento deviceorientation
+  var qSensor = new THREE.Quaternion();
   var euler = new THREE.Euler(), q0 = new THREE.Quaternion(), q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)), zee = new THREE.Vector3(0, 0, 1);
   function fallback() {
-    if (V._fb) return; V._fb = true;
+    if (V._fb) return; V._fb = true; V.fusion = false;
+    try {
+      if (window.RelativeOrientationSensor) {
+        var s2 = new RelativeOrientationSensor({ frequency: 120, referenceFrame: 'screen' });
+        s2.addEventListener('reading', function () { qSensor.fromArray(s2.quaternion); qSensor.premultiply(qWorld); have = true; V.sys = true; });
+        s2.start(); V.sensor = 'sensor de orientação do sistema'; return;
+      }
+    } catch (e) {}
     var go = function () {
       window.addEventListener('deviceorientation', function (e) {
         if (e.alpha === null) return;
         var a = THREE.MathUtils.degToRad(e.alpha), b = THREE.MathUtils.degToRad(e.beta), g = THREE.MathUtils.degToRad(e.gamma);
         var orient = THREE.MathUtils.degToRad((screen.orientation && screen.orientation.angle) || window.orientation || 0);
-        qPrev.copy(qSensor); tPrev = tCur; tCur = performance.now();
-        euler.set(b, a, -g, 'YXZ'); qSensor.setFromEuler(euler); qSensor.multiply(q1); qSensor.multiply(q0.setFromAxisAngle(zee, -orient)); have = true;
+        euler.set(b, a, -g, 'YXZ'); qSensor.setFromEuler(euler); qSensor.multiply(q1); qSensor.multiply(q0.setFromAxisAngle(zee, -orient)); have = true; V.sys = true;
       }, true);
+      V.sensor = 'deviceorientation (reserva)';
     };
     if (window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission) DeviceOrientationEvent.requestPermission().then(go, go); else go();
   }
-  var qPred = new THREE.Quaternion(), qDelta = new THREE.Quaternion(), qInv = new THREE.Quaternion();
+  var qPred = new THREE.Quaternion(), wpred = new THREE.Vector3();
   V.updateHead = function () {
     if (!V.active || V.mode !== '3dof' || !have) return;
-    // predição: extrapola a rotação pela velocidade angular medida (compensa latência sensor→tela)
-    qPred.copy(qSensor);
-    var dt = tCur - tPrev, ahead = V.cfg.predictMs + (performance.now() - tCur);
-    if (dt > 0 && dt < 100 && ahead > 0) {
-      qDelta.copy(qPrev).invert(); qDelta.premultiply(qSensor); // delta = atual · anterior⁻¹
-      var f = Math.min(2, ahead / dt), w = Math.min(1, Math.max(-1, qDelta.w)), ang = 2 * Math.acos(Math.abs(w));
-      if (ang > 1e-4 && ang < 0.5) { var ax = new THREE.Vector3(qDelta.x, qDelta.y, qDelta.z).normalize(); if (w < 0) ax.negate(); qPred.premultiply(new THREE.Quaternion().setFromAxisAngle(ax, ang * f)); }
-    }
+    if (V.fusion) {
+      // predição: gira pela velocidade angular atual pelo tempo até a imagem chegar aos olhos
+      var lead = (V.cfg.predictMs + (performance.now() - (V.lastSensor || performance.now()))) / 1000;
+      qPred.copy(qF); var ang = wF.length() * lead;
+      if (ang > 1e-6 && ang < 0.6) { qPred.multiply(tmpq.setFromAxisAngle(wpred.copy(wF).normalize(), ang)); }
+      qPred.premultiply(qWorld);
+    } else qPred.copy(qSensor);
     R.camera.quaternion.copy(yawFix).multiply(qPred);
-    R.camera.position.set(0, 0, 0);
+    if (V.cfg.accelMove) R.camera.position.copy(V.headOffset); else R.camera.position.set(0, 0, 0);
+    if (V.floorH) R.settings.height = V.floorH;
   };
   V.recenter = function () {
-    var d = new THREE.Vector3(0, 0, -1).applyQuaternion(qSensor); var yaw = Math.atan2(-d.x, -d.z);
+    var q = V.fusion ? qF.clone().premultiply(qWorld) : qSensor;
+    var d = new THREE.Vector3(0, 0, -1).applyQuaternion(q); var yaw = Math.atan2(-d.x, -d.z);
     yawFix.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -yaw);
+  };
+  // altura cabeça↔chão: barômetro do APK (o magnetômetro mede campo magnético, não distância)
+  V.calibrateFloor = function (step) {
+    if (!(window.WpolloAndroid && WpolloAndroid.pressure)) { R.ui.toast('Este modo precisa do APK (barômetro)'); return; }
+    var p = WpolloAndroid.pressure(); if (!(p > 0)) { R.ui.toast('Este celular não tem barômetro'); return; }
+    if (step === 'floor') { V.p0 = p; R.ui.toast('Chão gravado. Agora coloque o VR Box na cabeça e toque em "Cabeça".', 4); }
+    else if (V.p0) { var h = (V.p0 - p) * 8.3; if (h > 0.6 && h < 2.4) { V.floorH = h; R.settings.height = h; R.saveSettings(); R.ui.toast('Altura medida: ' + h.toFixed(2) + ' m'); } else R.ui.toast('Medida instável (' + h.toFixed(2) + ' m) — tente de novo parado'); }
   };
 
   // ---------------------------------------------------------------- 6DoF (ARCore pelo WebXR)
@@ -110,7 +177,6 @@
       });
     });
   }
-  var tmpP = new THREE.Vector3(), tmpQ = new THREE.Quaternion();
   function arFrame(t, frame) {
     if (!arSession) return;
     arSession.requestAnimationFrame(arFrame);
@@ -210,5 +276,13 @@
     if (six) r.setFramebuffer(null);
   };
   // olhar = ponteiro quando não há mãos/controle; toque na tela (botão do VR Box) = gatilho
-  window.addEventListener('resize', function () { if (V.active) R.renderer.setSize(window.innerWidth, window.innerHeight); });
+  window.addEventListener('resize', function () {
+    if (!V.active) return; R.renderer.setSize(window.innerWidth, window.innerHeight);
+    if (window.innerHeight > window.innerWidth) R.ui.toast('Gire o celular para a horizontal (paisagem)', 3);
+  });
+  V.toggleFullscreen = function () {
+    var de = document.documentElement;
+    if (document.fullscreenElement) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); }
+    else { var rq = de.requestFullscreen || de.webkitRequestFullscreen; if (rq) Promise.resolve(rq.call(de, { navigationUI: 'hide' })).then(function () { try { screen.orientation.lock('landscape').catch(function () {}); } catch (e) {} }, function () {}); }
+  };
 })();

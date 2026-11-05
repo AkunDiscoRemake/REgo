@@ -23,6 +23,7 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 
 import androidx.webkit.WebViewAssetLoader;
 
@@ -41,9 +42,12 @@ import ai.onnxruntime.providers.NNAPIFlags;
  * Wpollo VR para VR Box: o mesmo app web, servido localmente de dentro do APK (sem rede = menor latência),
  * com câmera, lanterna, tela sempre ligada e inferência NATIVA das mãos via ONNX Runtime + NNAPI (NPU/DSP).
  */
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements android.hardware.SensorEventListener {
     private static final String ORIGIN = "https://appassets.androidplatform.net";
     private WebView web;
+    FrameLayout root;
+    YtBridge yt; BrowserBridge browser; AppsBridge apps;
+    private volatile float pressure = 0;
     private PermissionRequest pendingPermission;
     private final ExecutorService nn = Executors.newSingleThreadExecutor();
     private OrtEnvironment env;
@@ -54,8 +58,15 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        root = new FrameLayout(this);
         web = new WebView(this);
-        setContentView(web);
+        root.addView(web, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        setContentView(root);
+        yt = new YtBridge(this); browser = new BrowserBridge(this); apps = new AppsBridge(this);
+        try { rikka.shizuku.Shizuku.addRequestPermissionResultListener((code, res) -> { if (res == PackageManager.PERMISSION_GRANTED) apps.requestAccess(); }); } catch (Throwable ignored) { }
+        android.hardware.SensorManager sm = (android.hardware.SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        android.hardware.Sensor ps = sm.getDefaultSensor(android.hardware.Sensor.TYPE_PRESSURE);
+        if (ps != null) sm.registerListener(this, ps, android.hardware.SensorManager.SENSOR_DELAY_GAME);
         immersive();
         WebView.setWebContentsDebuggingEnabled(true);
 
@@ -72,6 +83,10 @@ public class MainActivity extends Activity {
         web.setWebViewClient(new WebViewClient() {
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest req) {
+                String path = req.getUrl().getPath();
+                if (path != null && path.startsWith("/ytproxy")) return YtBridge.proxy(req);
+                if (path != null && path.startsWith("/browserframe")) return image(browser.frame());
+                if (path != null && path.startsWith("/appframe/")) { try { return image(apps.frame(Integer.parseInt(path.replaceAll("\\D+", "")))); } catch (Exception e) { return null; } }
                 WebResourceResponse r = loader.shouldInterceptRequest(req.getUrl());
                 if (r == null) return null;
                 // isolamento de origem => SharedArrayBuffer => ONNX Runtime com várias threads
@@ -96,6 +111,9 @@ public class MainActivity extends Activity {
             }
         });
         web.addJavascriptInterface(new Bridge(), "WpolloAndroid");
+        web.addJavascriptInterface(yt, "WpolloYT");
+        web.addJavascriptInterface(browser, "WpolloBrowser");
+        web.addJavascriptInterface(apps, "WpolloApps");
         web.loadUrl(ORIGIN + "/assets/www/index.html?app=1");
     }
 
@@ -120,7 +138,14 @@ public class MainActivity extends Activity {
     @Override public void onWindowFocusChanged(boolean f) { super.onWindowFocusChanged(f); if (f) immersive(); }
     @Override public void onBackPressed() { web.evaluateJavascript("window.REGO&&REGO.input&&(REGO.input._menuKey=true)", null); }
 
-    private void js(String code) { runOnUiThread(() -> web.evaluateJavascript(code, null)); }
+    void js(String code) { runOnUiThread(() -> web.evaluateJavascript(code, null)); }
+    private static WebResourceResponse image(byte[] b) {
+        java.util.Map<String, String> h = new java.util.HashMap<>(); h.put("Cache-Control", "no-store"); h.put("Cross-Origin-Resource-Policy", "cross-origin");
+        return new WebResourceResponse("image/jpeg", null, 200, "OK", h, new java.io.ByteArrayInputStream(b));
+    }
+    @Override protected void onActivityResult(int req, int code, android.content.Intent data) { super.onActivityResult(req, code, data); apps.onResult(req, code, data); }
+    @Override public void onSensorChanged(android.hardware.SensorEvent e) { pressure = e.values[0]; }
+    @Override public void onAccuracyChanged(android.hardware.Sensor s, int a) { }
 
     // ------------------------------------------------------------------ inferência nativa (NNAPI)
     private OrtSession open(String file, boolean fp16) throws Exception {
@@ -153,6 +178,7 @@ public class MainActivity extends Activity {
 
     class Bridge {
         @JavascriptInterface public boolean isApk() { return true; }
+        @JavascriptInterface public float pressure() { return pressure; }
         @JavascriptInterface public void keepScreenOn(boolean on) { }
         @JavascriptInterface public void vibrate(int ms) {
             Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);

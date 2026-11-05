@@ -52,7 +52,8 @@ export const TEXTURES = ['sparse_grass', 'leafy_grass', 'wood_floor', 'asphalt_0
 export const SKIES = { day: 'kloofendal_48d_partly_cloudy_puresky', sunset: 'belfast_sunset_puresky', night: 'dikhololo_night',
   overcast: 'kloofendal_overcast_puresky', snow: 'snowy_park_01', beach: 'secluded_beach', stadium: 'orlando_stadium',
   billiard: 'billiard_hall', studio: 'art_studio', hall: 'entrance_hall', haunted: 'abandoned_hall_01',
-  apartamento: 'cayley_interior', sala: 'kiara_interior', lounge: 'lythwood_lounge', lab: 'industrial_pipe_and_valve_01', hospital: 'hospital_room' };
+  apartamento: 'cayley_interior', sala: 'kiara_interior', lounge: 'lythwood_lounge', lab: 'industrial_pipe_and_valve_01', hospital: 'hospital_room',
+  cinema: 'cinema_hall', salacinza: 'interior_construction' };
 
 function curl(url, dest) {
   for (let i = 0; i < 4; i++) {

@@ -518,5 +518,15 @@
   "source": "https://polyhaven.com/a/hospital_room",
   "license": "CC0 1.0",
   "author": "Poly Haven"
+ },
+ "sky/cinema.jpg": {
+  "source": "https://polyhaven.com/a/cinema_hall",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "sky/salacinza.jpg": {
+  "source": "https://polyhaven.com/a/interior_construction",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
  }
 }
