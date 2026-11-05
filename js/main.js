@@ -27,7 +27,7 @@
   function showBox() { splash.hidden = true; form.hidden = false; fill(); }
   $('openbox').addEventListener('click', showBox);
   $('backsplash').addEventListener('click', function () { form.hidden = true; splash.hidden = false; });
-  if (apk || (isPhone && !/Pacific/.test(navigator.userAgent))) { $('openbox').textContent = '📱 Configurar VR Box'; if (apk) showBox(); }
+  if (apk || (isPhone && !/Pacific/.test(navigator.userAgent))) { $('openbox').textContent = '📱 Configurar VR Box'; }
   var VB = R.vrbox.cfg, HT = R.handtrack.cfg;
   var MAP = { track: [VB, 'track'], distortion: [VB, 'distortion', 'bool'], ipd: [VB, 'ipd', 'num'], fov: [VB, 'fov', 'num'], predictMs: [VB, 'predictMs', 'num'], scale: [VB, 'scale', 'num'], useMag: [VB, 'useMag', 'bool'], accelMove: [VB, 'accelMove', 'bool'],
     engine: [HT, 'engine'], async: [HT, 'async', 'bool'], filter: [HT, 'filter'], minCutoff: [HT, 'minCutoff', 'num'], beta: [HT, 'beta', 'num'], kalmanQ: [HT, 'kalmanQ', 'num'],
@@ -61,6 +61,8 @@
       setTimeout(function () { R.recenter(); }, 600);
     });
   });
+  // APK: abre a configuração do VR Box direto (só agora, com tudo acima já definido)
+  if (apk) showBox();
   // service worker: cache offline => abre instantâneo
   if ('serviceWorker' in navigator && location.protocol === 'https:' && !apk) {
     navigator.serviceWorker.register('sw.js').catch(function () {});
