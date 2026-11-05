@@ -28,16 +28,16 @@
       var ring = new THREE.Mesh(M.geo.torus(18, 0.6, 4, 40), R.mat.lambert('#e8c49a')); ring.rotation.x = 1.2; planet.add(ring);
       var moon = M.sphere(3, '#bfc4cc', 14); moon.position.set(25, 18, -45); homeEnv.add(moon);
     } else if (e === 'noite') {
-      M.env(homeEnv, { sky: 'night', ground: '#1b2a3a', trees: 30, mountains: '#1f2c44', stars: 1200 });
-      var moon2 = M.sphere(4, '#fff8dd', 16, R.mat.basic('#fff8dd')); moon2.position.set(20, 35, -70); homeEnv.add(moon2);
+      M.env(homeEnv, { sky: 'night', ground: '#1b2a3a', tex: 'sparse_grass', trees: 30, mountains: '#1f2c44', stars: 1200 });
+      if (!R.assets.sky.night) { var moon2 = M.sphere(4, '#fff8dd', 16, R.mat.basic('#fff8dd')); moon2.position.set(20, 35, -70); homeEnv.add(moon2); }
     } else if (e === 'praia') {
-      M.env(homeEnv, { sky: 'day', ground: '#f1d9a6', clouds: 8 });
+      M.env(homeEnv, { sky: 'day', ground: '#f1d9a6', tex: 'coast_sand_01', clouds: 8 });
       var sea = new THREE.Mesh(M.geo.plane(300, 150), R.mat.lambert('#2a8fc4')); sea.rotation.x = -Math.PI / 2; sea.position.set(0, 0.02, -85); homeEnv.add(sea);
       for (var i = 0; i < 6; i++) { var pt = M.tree(1.5, '#2f9e5a'); pt.position.set(-12 + i * 5, 0, 6 + (i % 2) * 3); homeEnv.add(pt); }
     } else { // lago ao pôr do sol
-      M.env(homeEnv, { sky: 'lago', ground: '#3d5a4a', trees: 40, mountains: '#7a6f99', clouds: 6 });
+      M.env(homeEnv, { sky: 'lago', ground: '#3d5a4a', tex: 'sparse_grass', trees: 40, rocks: 8, shrubs: 12, mountains: '#7a6f99', clouds: 6 });
       var lake = new THREE.Mesh(new THREE.CircleBufferGeometry(40, 32), R.mat.lambert('#6f8fc9')); lake.rotation.x = -Math.PI / 2; lake.position.set(0, 0.02, -48); homeEnv.add(lake);
-      var sun = M.sphere(6, '#ffd59a', 16, R.mat.basic('#ffd59a')); sun.position.set(0, 9, -120); homeEnv.add(sun);
+      if (!R.assets.sky.sunset) { var sun = M.sphere(6, '#ffd59a', 16, R.mat.basic('#ffd59a')); sun.position.set(0, 9, -120); homeEnv.add(sun); }
     }
     home.fog = null;
     home.add(homeEnv);
@@ -175,6 +175,11 @@
     // abre jogo/app por hash: #game=bowling
     var m = /game=([\w-]+)/.exec(location.hash); if (m && R.gameById[m[1]]) os.launch(m[1]);
     os.notify('Bem-vindo ao REgo OS — ' + R.gameList.length + ' jogos prontos');
+    // modelos comuns (mãos, controle, árvores, céus) em segundo plano
+    R.assets.preloadCommon().then(function () {
+      R.input.upgradeHands();
+      if (!os.current) buildHomeEnv();
+    });
   };
 
   // ------------------------------------------------------------ janelas de apps
@@ -253,13 +258,33 @@
     var run = os.isRunning(id); if (run) return os.resume(run);
     if (os.current) os.suspend();
     if (os.running.length >= os.maxRunning) os.kill(os.running[0]);
+    if (os.loading) return;
     var ctx = new R.GameCtx(def);
-    os.running.push(ctx);
-    enterGame(ctx, true);
-    R.sfx.play('whoosh');
-    if (def.controls) ui.toast(def.controls, 4);
-    ui.toast(def.name, 2.5);
+    // carrega modelos/texturas/céu do jogo antes de entrar (cache => instantâneo na 2ª vez)
+    os.loading = { name: def.name, p: 0 }; showLoading();
+    var spec = R.gameAssets(def);
+    var go = function () {
+      os.loading = null; hideLoading();
+      os.running.push(ctx);
+      enterGame(ctx, true);
+      R.sfx.play('whoosh');
+      if (def.controls) ui.toast(def.controls, 4);
+      ui.toast(def.name, 2.5);
+    };
+    var t = setTimeout(go, 12000); // nunca trava: entra mesmo se a rede falhar
+    R.assets.loadAll(spec, function (f) { if (os.loading) { os.loading.p = f; loadPanel.dirty = true; } }).then(function () { clearTimeout(t); if (os.loading) go(); });
   };
+  var loadPanel = null;
+  function showLoading() {
+    if (!loadPanel) loadPanel = new ui.Panel({ w: 0.9, h: 0.26, res: 480, onTop: true, render: function (x, P) {
+      ui.glass(x, 0, 0, P.cw, P.ch, 36); var L = os.loading || { name: '', p: 1 };
+      ui.text(x, 'Abrindo ' + L.name + '…', 30, 44, 26, { weight: 700, maxW: P.cw - 60 });
+      ui.roundRect(x, 30, 80, P.cw - 60, 16, 8); x.fillStyle = 'rgba(255,255,255,0.15)'; x.fill();
+      ui.roundRect(x, 30, 80, Math.max(16, (P.cw - 60) * L.p), 16, 8); x.fillStyle = '#4b8ff8'; x.fill();
+    } });
+    R.scene.add(loadPanel.mesh); loadPanel.mesh.visible = true; loadPanel.dirty = true; ui.placeInFront(loadPanel.mesh, 1.5, 0);
+  }
+  function hideLoading() { if (loadPanel) { loadPanel.mesh.visible = false; if (loadPanel.mesh.parent) loadPanel.mesh.parent.remove(loadPanel.mesh); } }
   function enterGame(ctx, fresh) {
     home.visible = false; if (home.parent) R.scene.remove(home);
     os.current = ctx;
@@ -270,14 +295,19 @@
       R.player.x = ctx.player.x; R.player.y = ctx.player.y; R.player.z = ctx.player.z; R.player.yaw = ctx.player.yaw;
     }
     for (var i = 0; i < ctx.attached.length; i++) ctx.attached[i].visible = true;
+    ctx.setHolding(true);
     R.scene.fog = ctx.root.fog || null;
     R.applyMods(ctx);
+    if (ctx.envKey && R.assets.realistic()) R.assets.setEnv(ctx.envKey);
+    // pré-compila shaders => sem engasgo no primeiro frame
+    if (fresh) try { R.renderer.compile(R.scene, R.camera); } catch (e) {}
     mainPanel.dirty = true;
   }
   os.suspend = function () {
     var ctx = os.current; if (!ctx) return;
     ctx.player = { x: R.player.x, y: R.player.y, z: R.player.z, yaw: R.player.yaw };
     for (var i = 0; i < ctx.attached.length; i++) ctx.attached[i].visible = false;
+    ctx.setHolding(false);
     R.scene.remove(ctx.root); os.current = null;
     closePause();
   };

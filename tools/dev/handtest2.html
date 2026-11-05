@@ -1,0 +1,13 @@
+<!doctype html><html><body style="margin:0;background:#777"><canvas id="c" width="1500" height="600"></canvas>
+<script src="../../js/vendor/three.min.js"></script><script src="../../js/vendor/GLTFLoader.js"></script><script src="../../js/vendor/SkeletonUtils.js"></script>
+<script>window.REGO={settings:{quality:'go'},renderer:null};</script><script src="../../js/core/assets.js"></script>
+<script>
+var R=REGO,A=R.assets,names=(location.hash.slice(1)||'service_pistol,baseball_bat,antique_katana_01,machete,wooden_hammer_01,sledgehammer_01,wooden_axe,metal_detector,rusted_spade_01,vintage_flashlight').split(',');
+var r=new THREE.WebGLRenderer({canvas:document.getElementById('c')});r.setScissorTest(true);
+Promise.all(names.map(A.loadModel)).then(function(){
+ names.forEach(function(n,i){var sc=new THREE.Scene();sc.background=new THREE.Color('#777');sc.add(new THREE.HemisphereLight('#fff','#444',1.2));
+  var o=A.holdable(n,0.8);if(o)sc.add(o);sc.add(new THREE.AxesHelper(0.3));
+  var cam=new THREE.PerspectiveCamera(50,1,0.01,10);cam.position.set(1.4,0.3,-0.35);cam.lookAt(0,0,-0.35);
+  var x=(i%5)*300,y=(i<5?300:0);r.setViewport(x,y,300,300);r.setScissor(x,y,300,300);r.render(sc,cam);});
+ document.title='done';});
+</script></body></html>

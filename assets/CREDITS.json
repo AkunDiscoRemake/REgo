@@ -1,0 +1,497 @@
+{
+ "models/hand_left.glb": {
+  "source": "https://github.com/immersive-web/webxr-input-profiles (packages/assets)",
+  "license": "MIT",
+  "author": "W3C Immersive Web WG"
+ },
+ "models/hand_right.glb": {
+  "source": "https://github.com/immersive-web/webxr-input-profiles (packages/assets)",
+  "license": "MIT",
+  "author": "W3C Immersive Web WG"
+ },
+ "models/oculus_go.glb": {
+  "source": "https://github.com/immersive-web/webxr-input-profiles (packages/assets)",
+  "license": "MIT",
+  "author": "W3C Immersive Web WG"
+ },
+ "sky/day.jpg": {
+  "source": "https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "sky/sunset.jpg": {
+  "source": "https://polyhaven.com/a/belfast_sunset_puresky",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "sky/night.jpg": {
+  "source": "https://polyhaven.com/a/dikhololo_night",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "sky/overcast.jpg": {
+  "source": "https://polyhaven.com/a/kloofendal_overcast_puresky",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "sky/snow.jpg": {
+  "source": "https://polyhaven.com/a/snowy_park_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "sky/beach.jpg": {
+  "source": "https://polyhaven.com/a/secluded_beach",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "sky/stadium.jpg": {
+  "source": "https://polyhaven.com/a/orlando_stadium",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "sky/studio.jpg": {
+  "source": "https://polyhaven.com/a/art_studio",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "sky/hall.jpg": {
+  "source": "https://polyhaven.com/a/entrance_hall",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "sky/billiard.jpg": {
+  "source": "https://polyhaven.com/a/billiard_hall",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "sky/haunted.jpg": {
+  "source": "https://polyhaven.com/a/abandoned_hall_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "models/food_apple_01.glb": {
+  "source": "https://polyhaven.com/a/food_apple_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 350
+ },
+ "models/baseball_bat.glb": {
+  "source": "https://polyhaven.com/a/baseball_bat",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1200
+ },
+ "tex/wood_floor.jpg": {
+  "source": "https://polyhaven.com/a/wood_floor",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "tex/leafy_grass.jpg": {
+  "source": "https://polyhaven.com/a/leafy_grass",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "tex/sparse_grass.jpg": {
+  "source": "https://polyhaven.com/a/sparse_grass",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "tex/asphalt_02.jpg": {
+  "source": "https://polyhaven.com/a/asphalt_02",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "tex/snow_02.jpg": {
+  "source": "https://polyhaven.com/a/snow_02",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "tex/coast_sand_01.jpg": {
+  "source": "https://polyhaven.com/a/coast_sand_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "tex/brushed_concrete.jpg": {
+  "source": "https://polyhaven.com/a/brushed_concrete",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "tex/brown_planks_03.jpg": {
+  "source": "https://polyhaven.com/a/brown_planks_03",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "tex/aerial_grass_rock.jpg": {
+  "source": "https://polyhaven.com/a/aerial_grass_rock",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "tex/marble_tiles.jpg": {
+  "source": "https://polyhaven.com/a/marble_tiles",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "tex/laminate_floor.jpg": {
+  "source": "https://polyhaven.com/a/laminate_floor",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "tex/park_dirt.jpg": {
+  "source": "https://polyhaven.com/a/park_dirt",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "tex/brick_floor.jpg": {
+  "source": "https://polyhaven.com/a/brick_floor",
+  "license": "CC0 1.0",
+  "author": "Poly Haven"
+ },
+ "models/baseball_01.glb": {
+  "source": "https://polyhaven.com/a/baseball_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1430
+ },
+ "models/american_football.glb": {
+  "source": "https://polyhaven.com/a/american_football",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 824
+ },
+ "models/football.glb": {
+  "source": "https://polyhaven.com/a/football",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1042
+ },
+ "models/wooden_axe.glb": {
+  "source": "https://polyhaven.com/a/wooden_axe",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 699
+ },
+ "models/dartboard.glb": {
+  "source": "https://polyhaven.com/a/dartboard",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1199
+ },
+ "models/service_pistol.glb": {
+  "source": "https://polyhaven.com/a/service_pistol",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 6233
+ },
+ "models/cannon_01.glb": {
+  "source": "https://polyhaven.com/a/cannon_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 3067
+ },
+ "models/antique_katana_01.glb": {
+  "source": "https://polyhaven.com/a/antique_katana_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1200
+ },
+ "models/wooden_hammer_01.glb": {
+  "source": "https://polyhaven.com/a/wooden_hammer_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 600
+ },
+ "models/sledgehammer_01.glb": {
+  "source": "https://polyhaven.com/a/sledgehammer_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 700
+ },
+ "models/machete.glb": {
+  "source": "https://polyhaven.com/a/machete",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 599
+ },
+ "models/metal_detector.glb": {
+  "source": "https://polyhaven.com/a/metal_detector",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 2485
+ },
+ "models/rubber_duck_toy.glb": {
+  "source": "https://polyhaven.com/a/rubber_duck_toy",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 678
+ },
+ "models/rusted_spade_01.glb": {
+  "source": "https://polyhaven.com/a/rusted_spade_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 599
+ },
+ "models/garden_gnome.glb": {
+  "source": "https://polyhaven.com/a/garden_gnome",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1800
+ },
+ "models/food_kiwi_01.glb": {
+  "source": "https://polyhaven.com/a/food_kiwi_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 302
+ },
+ "models/lemon.glb": {
+  "source": "https://polyhaven.com/a/lemon",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 446
+ },
+ "models/food_pomegranate_01.glb": {
+  "source": "https://polyhaven.com/a/food_pomegranate_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 349
+ },
+ "models/food_avocado_01.glb": {
+  "source": "https://polyhaven.com/a/food_avocado_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 300
+ },
+ "models/food_lime_01.glb": {
+  "source": "https://polyhaven.com/a/food_lime_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 299
+ },
+ "models/wine_barrel_01.glb": {
+  "source": "https://polyhaven.com/a/wine_barrel_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 2887
+ },
+ "models/Barrel_01.glb": {
+  "source": "https://polyhaven.com/a/Barrel_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1200
+ },
+ "models/wooden_crate_01.glb": {
+  "source": "https://polyhaven.com/a/wooden_crate_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 988
+ },
+ "models/cardboard_box_01.glb": {
+  "source": "https://polyhaven.com/a/cardboard_box_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 300
+ },
+ "models/old_tyre.glb": {
+  "source": "https://polyhaven.com/a/old_tyre",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1200
+ },
+ "models/propane_tank.glb": {
+  "source": "https://polyhaven.com/a/propane_tank",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1373
+ },
+ "models/metal_jerrycan.glb": {
+  "source": "https://polyhaven.com/a/metal_jerrycan",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 999
+ },
+ "models/ceramic_vase_01.glb": {
+  "source": "https://polyhaven.com/a/ceramic_vase_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1382
+ },
+ "models/Television_01.glb": {
+  "source": "https://polyhaven.com/a/Television_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1500
+ },
+ "models/concrete_road_barrier.glb": {
+  "source": "https://polyhaven.com/a/concrete_road_barrier",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 499
+ },
+ "models/treasure_chest.glb": {
+  "source": "https://polyhaven.com/a/treasure_chest",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 3319
+ },
+ "models/Sofa_01.glb": {
+  "source": "https://polyhaven.com/a/Sofa_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 2500
+ },
+ "models/ArmChair_01.glb": {
+  "source": "https://polyhaven.com/a/ArmChair_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1999
+ },
+ "models/plastic_monobloc_chair_01.glb": {
+  "source": "https://polyhaven.com/a/plastic_monobloc_chair_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1500
+ },
+ "models/WoodenTable_01.glb": {
+  "source": "https://polyhaven.com/a/WoodenTable_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 900
+ },
+ "models/wooden_bookshelf_worn.glb": {
+  "source": "https://polyhaven.com/a/wooden_bookshelf_worn",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1999
+ },
+ "models/vintage_grandfather_clock_01.glb": {
+  "source": "https://polyhaven.com/a/vintage_grandfather_clock_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 2541
+ },
+ "models/drawer_cabinet.glb": {
+  "source": "https://polyhaven.com/a/drawer_cabinet",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 5986
+ },
+ "models/vintage_flashlight.glb": {
+  "source": "https://polyhaven.com/a/vintage_flashlight",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 994
+ },
+ "models/wooden_lantern_01.glb": {
+  "source": "https://polyhaven.com/a/wooden_lantern_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1315
+ },
+ "models/wine_bottles_01.glb": {
+  "source": "https://polyhaven.com/a/wine_bottles_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1547
+ },
+ "models/standing_chalkboard_01.glb": {
+  "source": "https://polyhaven.com/a/standing_chalkboard_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 804
+ },
+ "models/marble_bust_01.glb": {
+  "source": "https://polyhaven.com/a/marble_bust_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 3000
+ },
+ "models/gothic_statue.glb": {
+  "source": "https://polyhaven.com/a/gothic_statue",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 4152
+ },
+ "models/bronze_shark_statue.glb": {
+  "source": "https://polyhaven.com/a/bronze_shark_statue",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 2500
+ },
+ "models/horse_statue_01.glb": {
+  "source": "https://polyhaven.com/a/horse_statue_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 3044
+ },
+ "models/lion_head.glb": {
+  "source": "https://polyhaven.com/a/lion_head",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 2500
+ },
+ "models/concrete_cat_statue.glb": {
+  "source": "https://polyhaven.com/a/concrete_cat_statue",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 2000
+ },
+ "models/shrub_01.glb": {
+  "source": "https://polyhaven.com/a/shrub_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 2420
+ },
+ "models/rock_07.glb": {
+  "source": "https://polyhaven.com/a/rock_07",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 799
+ },
+ "models/namaqualand_boulder_02.glb": {
+  "source": "https://polyhaven.com/a/namaqualand_boulder_02",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 799
+ },
+ "models/moon_rock_01.glb": {
+  "source": "https://polyhaven.com/a/moon_rock_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 709
+ },
+ "models/street_lamp_01.glb": {
+  "source": "https://polyhaven.com/a/street_lamp_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1084
+ },
+ "models/fire_hydrant.glb": {
+  "source": "https://polyhaven.com/a/fire_hydrant",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 2256
+ },
+ "models/lifebuoy.glb": {
+  "source": "https://polyhaven.com/a/lifebuoy",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 499
+ },
+ "models/wooden_bucket_01.glb": {
+  "source": "https://polyhaven.com/a/wooden_bucket_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1262
+ },
+ "models/wooden_picnic_table.glb": {
+  "source": "https://polyhaven.com/a/wooden_picnic_table",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1077
+ },
+ "models/fir_sapling.glb": {
+  "source": "https://polyhaven.com/a/fir_sapling",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 2457
+ }
+}

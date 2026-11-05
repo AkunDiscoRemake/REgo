@@ -293,6 +293,7 @@
       var p = input.pointers[i];
       var g = input.giant;
       p.model.scale.setScalar(g);
+      if (p.hand) R.hands.update(p);
       p.arm.visible = input.dualArm || g > 1.01;
       p.laser.visible = p.laserOn;
       p.laser.scale.set(1, 1, Math.max(0.01, p.laserDist));
@@ -306,6 +307,13 @@
     }
   };
 
+  // troca o controle procedural por mão realista + controle do Go (quando os modelos carregarem)
+  input.upgradeHands = function () {
+    var lh = !!R.settings.leftHanded, ok = false;
+    input.real.concat([input.mousePointer]).forEach(function (p, i) { ok = R.hands.attach(p, i === 1 ? !lh : lh) || ok; });
+    R.hands.attach(input.mirror, !lh);
+    return ok;
+  };
   input.setLaser = function (p, dist, point) { p.laserDist = dist; p.cursorAt = point || null; };
   input.Pointer = Pointer;
 })();

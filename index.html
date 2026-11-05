@@ -21,11 +21,16 @@
 <!-- bibliotecas locais (sem CDN = menor latência) -->
 <script src="js/vendor/three.min.js"></script>
 <script src="js/vendor/cannon.min.js"></script>
+<script src="js/vendor/GLTFLoader.js"></script>
+<script src="js/vendor/SkeletonUtils.js"></script>
+<script src="js/vendor/BufferGeometryUtils.js"></script>
 <!-- Go com Oculus Browser antigo (só WebVR 1.1): converte para WebXR -->
 <script>if (!navigator.xr && navigator.getVRDisplays) document.write('<script src="js/vendor/webxr-polyfill.min.js"><\/script><script>new WebXRPolyfill({ cardboard: false });<\/script>');</script>
 <!-- núcleo -->
 <script src="js/core/engine.js"></script>
 <script src="js/core/models.js"></script>
+<script src="js/core/assets.js"></script>
+<script src="js/core/hands.js"></script>
 <script src="js/core/audio.js"></script>
 <script src="js/core/ui.js"></script>
 <script src="js/core/input.js"></script>

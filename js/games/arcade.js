@@ -7,7 +7,10 @@
 
   // ---------------------------------------------------------------- helpers
   G.root = function (o) { while (o && !(o.userData && o.userData.t)) o = o.parent; return o; };
-  G.guns = function (g, color) { return g.holdAll(function () { return M.gun(color); }); };
+  G.guns = function (g, color) { return g.holdAll(function () { return R.assets.holdable('service_pistol', 0.21) || M.gun(color); }); };
+  // aplica textura fotográfica (se carregada) a uma malha
+  G.tex = function (mesh, name, rep) { var m = R.assets.surface(name, rep || 1); if (m) mesh.material = m; return mesh; };
+  G.place = function (g, name, size, x, y, z, ry) { var m = R.assets.get(name, { size: size }); if (m) { m.position.set(x, y, z); m.rotation.y = ry || 0; g.add(m); } return m; };
   G.shoot = function (g, p, targets, onHit) {
     R.sfx.play('shoot');
     var hit = p.ray.intersectObjects(targets, true)[0];
@@ -66,11 +69,12 @@
   G.ringPos = function (r, a, y) { return new V(Math.sin(a) * r, y, -Math.cos(a) * r); };
 
   // ---------------------------------------------------------------- Tiro ao Alvo
-  R.game({ id: 'alvo', name: 'Tiro ao Alvo', cat: 'Ação', featured: true, c1: '#e23b3b', c2: '#ffd23f', glyph: '🎯',
+  R.game({ id: 'alvo', assets: { models: ['service_pistol', 'WoodenTable_01', 'wooden_crate_01', 'Barrel_01'], sky: 'day' }, name: 'Tiro ao Alvo', cat: 'Ação', featured: true, c1: '#e23b3b', c2: '#ffd23f', glyph: '🎯',
     desc: 'Alvos surgem no campo de tiro. Centro vale mais. 60 segundos.', controls: 'Mire com o controle e aperte o gatilho.',
     build: function (g) {
       g.env({ sky: 'day', ground: '#c9b38a', trees: 25, mountains: true });
-      var bench = M.box(2.5, 0.9, 0.5, '#7a5232'); bench.position.set(0, 0.45, -0.8); g.add(bench);
+      if (!G.place(g, 'WoodenTable_01', 1.6, 0, 0, -0.9)) { var bench = M.box(2.5, 0.9, 0.5, '#7a5232'); bench.position.set(0, 0.45, -0.8); g.add(bench); }
+      G.place(g, 'wooden_crate_01', 0.6, -1.6, 0, -1, 0.4); G.place(g, 'Barrel_01', 0.9, 1.7, 0, -1.2);
       G.guns(g); var targets = [];
       function spawn() {
         var t = M.target(0.35 + Math.random() * 0.2); t.userData.t = 'alvo';
@@ -94,7 +98,7 @@
     } });
 
   // ---------------------------------------------------------------- Estoura Balões
-  R.game({ id: 'baloes', name: 'Estoura Balões', cat: 'Ação', c1: '#ff4f8b', c2: '#ffb36b', glyph: '🎈',
+  R.game({ id: 'baloes', assets: { sky: 'day' }, name: 'Estoura Balões', cat: 'Ação', c1: '#ff4f8b', c2: '#ffb36b', glyph: '🎈',
     desc: 'Balões sobem ao seu redor. Dourados valem 5! Pretos tiram pontos.', controls: 'Aponte e aperte o gatilho para estourar.',
     build: function (g) {
       g.env({ sky: 'day', ground: '#7cc576', clouds: 10, trees: 20 });
@@ -123,7 +127,7 @@
     } });
 
   // ---------------------------------------------------------------- Defensor Espacial
-  R.game({ id: 'asteroides', name: 'Defensor Espacial', cat: 'Ação', featured: true, c1: '#05061a', c2: '#7a5cff', glyph: '☄',
+  R.game({ id: 'asteroides', assets: { models: ['service_pistol'] }, name: 'Defensor Espacial', cat: 'Ação', featured: true, c1: '#05061a', c2: '#7a5cff', glyph: '☄',
     desc: 'Asteroides vêm de todos os lados em direção à sua estação. Destrua-os antes do impacto!', controls: 'Gatilho atira lasers. Gire o corpo para cobrir 360°.',
     build: function (g) {
       g.env({ sky: 'space', ground: false, stars: 1500 });
@@ -153,12 +157,14 @@
     } });
 
   // ---------------------------------------------------------------- Noite dos Zumbis
-  R.game({ id: 'zumbis', name: 'Noite dos Zumbis', cat: 'Ação', c1: '#1d3b1f', c2: '#7dff9c', glyph: '🧟',
+  R.game({ id: 'zumbis', assets: { models: ['service_pistol', 'street_lamp_01', 'wooden_crate_01', 'Barrel_01'], sky: 'night' }, name: 'Noite dos Zumbis', cat: 'Ação', c1: '#1d3b1f', c2: '#7dff9c', glyph: '🧟',
     desc: 'Ondas de zumbis de blocos avançam. Tiro na cabeça vale o dobro.', controls: 'Gatilho atira. Gire para vigiar todos os lados.',
     build: function (g) {
       g.env({ sky: 'night', ground: '#263325', trees: 30, fog: ['#0b1640', 8, 40] });
       for (var f = 0; f < 10; f++) { var fe = M.box(1.6, 0.8, 0.1, '#5a3d2a'); var a = f / 10 * Math.PI * 2; fe.position.set(Math.sin(a) * 3, 0.4, -Math.cos(a) * 3); fe.rotation.y = -a; g.add(fe); }
       var lamp = new THREE.PointLight('#ffcf8a', 1.2, 14); lamp.position.set(0, 3, 0); g.add(lamp);
+      for (var pr2 = 0; pr2 < 4; pr2++) { var pa = pr2 * Math.PI / 2 + 0.78; G.place(g, 'street_lamp_01', 3.5, Math.sin(pa) * 4, 0, -Math.cos(pa) * 4, -pa); }
+      for (var bc = 0; bc < 8; bc++) { var ba = bc / 8 * Math.PI * 2 + 0.4; G.place(g, bc % 2 ? 'Barrel_01' : 'wooden_crate_01', bc % 2 ? 0.9 : 0.7, Math.sin(ba) * 3.4, 0, -Math.cos(ba) * 3.4, ba); }
       G.guns(g, '#555'); var zs = [], wave = 1, toSpawn = 5, lives = 3, spawnT = 0;
       function spawn() {
         var z = M.blocky('#3c6e3c', '#3b2f2f', '#7fbf7f'); z.scale.setScalar(1.8); var a = Math.random() * Math.PI * 2;
@@ -190,17 +196,21 @@
     } });
 
   // ---------------------------------------------------------------- Galeria de Tiro (parque)
-  R.game({ id: 'galeria', name: 'Galeria do Parque', cat: 'Ação', c1: '#d9480f', c2: '#ffd23f', glyph: '🦆',
+  R.game({ id: 'galeria', assets: { models: ['service_pistol', 'rubber_duck_toy', 'wooden_lantern_01'], sky: 'sunset' }, name: 'Galeria do Parque', cat: 'Ação', c1: '#d9480f', c2: '#ffd23f', glyph: '🦆',
     desc: 'Barraca de parque de diversões: patinhos em três esteiras. Patos dourados valem mais.', controls: 'Mire e aperte o gatilho.',
     build: function (g) {
       g.env({ sky: 'sunset', ground: '#3a2a3a' });
-      var booth = M.box(6, 3, 0.2, '#b3202a'); booth.position.set(0, 1.5, -5.5); g.add(booth);
+      var booth = G.tex(M.box(6, 3, 0.2, '#b3202a'), 'brown_planks_03', 2); booth.position.set(0, 1.5, -5.5); g.add(booth);
+      for (var rl = 0; rl < 3; rl++) { var rail = M.box(6, 0.05, 0.1, '#6b4a2a'); rail.position.set(0, 0.62 + rl * 0.7, -5.25); g.add(rail); }
+      G.place(g, 'wooden_lantern_01', 0.4, -2.6, 3.0, -5.2); G.place(g, 'wooden_lantern_01', 0.4, 2.6, 3.0, -5.2);
       for (var s = 0; s < 8; s++) { var st = M.box(0.75, 0.4, 0.05, s % 2 ? '#fff' : '#e23b3b'); st.position.set(-2.62 + s * 0.75, 3.2, -5.3); g.add(st); }
       G.guns(g, '#8a5a2a'); var ducks = [];
       function duck(row) {
         var gold = Math.random() < 0.12, d = new THREE.Group(); d.userData.t = gold ? 'gold' : 'duck';
-        var b = M.sphere(0.18, gold ? '#ffd23f' : '#f5e663', 10); b.scale.set(1.3, 1, 1); var h = M.sphere(0.11, gold ? '#ffd23f' : '#f5e663', 8); h.position.set(0.14, 0.17, 0);
-        var bk = M.cone(0.04, 0.1, '#ff8a00', 6); bk.rotation.z = -Math.PI / 2; bk.position.set(0.27, 0.16, 0); d.add(b, h, bk);
+        var real = R.assets.get('rubber_duck_toy', { size: 0.42, tint: gold ? '#ffcc33' : null });
+        if (real) { real.rotation.y = Math.PI / 2; d.add(real); } else {
+          var b = M.sphere(0.18, gold ? '#ffd23f' : '#f5e663', 10); b.scale.set(1.3, 1, 1); var h = M.sphere(0.11, gold ? '#ffd23f' : '#f5e663', 8); h.position.set(0.14, 0.17, 0);
+          var bk = M.cone(0.04, 0.1, '#ff8a00', 6); bk.rotation.z = -Math.PI / 2; bk.position.set(0.27, 0.16, 0); d.add(b, h, bk); }
         d.userData.dir = row % 2 ? 1 : -1; d.userData.sp = 1 + row * 0.5; d.position.set(-3 * d.userData.dir, 0.8 + row * 0.7, -5.2); d.scale.x = d.userData.dir;
         g.add(d); ducks.push(d);
       }
@@ -216,7 +226,7 @@
     } });
 
   // ---------------------------------------------------------------- Tiro ao Prato
-  R.game({ id: 'skeet', name: 'Tiro ao Prato', cat: 'Esporte', c1: '#ff8a00', c2: '#3d8bfd', glyph: '🥏',
+  R.game({ id: 'skeet', assets: { models: ['service_pistol'], sky: 'day' }, name: 'Tiro ao Prato', cat: 'Esporte', c1: '#ff8a00', c2: '#3d8bfd', glyph: '🥏',
     desc: 'Pratos são lançados em arco. Acerte-os no ar! 20 pratos.', controls: 'Siga o prato e aperte o gatilho.',
     build: function (g) {
       g.env({ sky: 'day', ground: '#8bbf6a', trees: 30, mountains: true });
@@ -237,22 +247,23 @@
     } });
 
   // ---------------------------------------------------------------- Martelo na Toupeira
-  R.game({ id: 'toupeira', name: 'Martelo Maluco', cat: 'Ação', featured: true, c1: '#7a5232', c2: '#7cc576', glyph: '🔨',
+  R.game({ id: 'toupeira', assets: { models: ['garden_gnome', 'wooden_hammer_01'], sky: 'day' }, name: 'Martelo Maluco', cat: 'Ação', featured: true, c1: '#7a5232', c2: '#7cc576', glyph: '🔨',
     desc: 'Bichinhos saem dos buracos. Martele rápido! Os de capacete precisam de 2 golpes.', controls: 'Aponte para o bichinho e aperte o gatilho.',
     build: function (g) {
       g.env({ sky: 'day', ground: '#7cc576', trees: 15, clouds: 6 });
-      var table = M.box(2.4, 0.8, 1.6, '#a0703c'); table.position.set(0, 0.4, -1.4); g.add(table);
+      var table = G.tex(M.box(2.4, 0.8, 1.6, '#a0703c'), 'brown_planks_03', 1); table.position.set(0, 0.4, -1.4); g.add(table);
       var holes = [], moles = [];
       for (var r = 0; r < 3; r++) for (var c = 0; c < 3; c++) {
         var h = new THREE.Mesh(new THREE.CircleBufferGeometry(0.18, 16), R.mat.basic('#2a1a0a')); h.rotation.x = -Math.PI / 2;
         h.position.set((c - 1) * 0.7, 0.805, -0.9 - r * 0.45); g.add(h); holes.push(h.position.clone());
-        var m = new THREE.Group(); var body = M.cyl(0.13, 0.15, 0.3, '#8a5a3c', 10); var nose = M.sphere(0.04, '#ff7aa8', 6); nose.position.set(0, 0.06, 0.13);
-        var e1 = M.sphere(0.025, '#111', 6); e1.position.set(-0.05, 0.1, 0.11); var e2 = e1.clone(); e2.position.x = 0.05;
-        var helmet = M.sphere(0.14, '#ffd23f', 10); helmet.scale.y = 0.6; helmet.position.y = 0.15;
-        m.add(body, nose, e1, e2, helmet); m.userData = { t: 'mole', up: 0, state: 'down', timer: 0, helmet: helmet, hp: 1 };
+        var m = new THREE.Group(), gn = R.assets.get('garden_gnome', { size: 0.42 });
+        var helmet = M.sphere(0.14, '#ffd23f', 10); helmet.scale.y = 0.6;
+        if (gn) { gn.position.y = -0.17; m.add(gn); helmet.position.y = 0.27; m.add(helmet); }
+        else { var body = M.cyl(0.13, 0.15, 0.3, '#8a5a3c', 10); var nose = M.sphere(0.04, '#ff7aa8', 6); nose.position.set(0, 0.06, 0.13);
+          var e1 = M.sphere(0.025, '#111', 6); e1.position.set(-0.05, 0.1, 0.11); var e2 = e1.clone(); e2.position.x = 0.05; helmet.position.y = 0.15; m.add(body, nose, e1, e2, helmet); } m.userData = { t: 'mole', up: 0, state: 'down', timer: 0, helmet: helmet, hp: 1 };
         m.position.copy(h.position); m.position.y = 0.6; g.add(m); moles.push(m);
       }
-      var hammers = g.holdAll(function () { var hm = new THREE.Group(); var hd = M.cyl(0.07, 0.07, 0.2, '#c0392b', 10); hd.rotation.z = Math.PI / 2; hd.position.z = -0.32; var hn = M.cyl(0.015, 0.015, 0.32, '#7a5232', 6); hn.rotation.x = Math.PI / 2; hn.position.z = -0.16; hm.add(hd, hn); return hm; });
+      var hammers = g.holdAll(function () { var real = R.assets.holdable('wooden_hammer_01', 0.45); if (real) return real; var hm = new THREE.Group(); var hd = M.cyl(0.07, 0.07, 0.2, '#c0392b', 10); hd.rotation.z = Math.PI / 2; hd.position.z = -0.32; var hn = M.cyl(0.015, 0.015, 0.32, '#7a5232', 6); hn.rotation.x = Math.PI / 2; hn.position.z = -0.16; hm.add(hd, hn); return hm; });
       g.on('press', function (p) {
         var hm = g.heldBy(p, hammers); if (hm) { hm.rotation.x = -0.7; setTimeout(function () { hm.rotation.x = 0; }, 90); }
         var hit = g.ray(p, moles, true); if (!hit) { R.sfx.play('thud', 0.5); return; }
@@ -275,16 +286,19 @@
     } });
 
   // ---------------------------------------------------------------- Fatiador de Frutas
-  R.game({ id: 'frutas', name: 'Fatiador de Frutas', cat: 'Ação', c1: '#ff4f4f', c2: '#7dff9c', glyph: '🍉',
+  R.game({ id: 'frutas', assets: { models: ['antique_katana_01', 'food_apple_01', 'lemon', 'food_kiwi_01', 'food_pomegranate_01', 'food_avocado_01', 'food_lime_01', 'WoodenTable_01'], sky: 'sunset' }, name: 'Fatiador de Frutas', cat: 'Ação', c1: '#ff4f4f', c2: '#7dff9c', glyph: '🍉',
     desc: 'Frutas voam pelo ar: passe a lâmina por elas! Cuidado com as bombas.', controls: 'Segure o gatilho e varra o laser sobre as frutas (ou só passe a espada).',
     build: function (g) {
       g.env({ sky: 'sunset', ground: '#5a3d2a', trees: 10 });
-      var blades = g.holdAll(function () { var b = M.box(0.02, 0.04, 1.0, null, R.mat.glow('#7fd0ff')); b.position.z = -0.55; var w = new THREE.Group(); w.add(b); return w; });
+      var blades = g.holdAll(function () { var k = R.assets.holdable('antique_katana_01', 1.0); if (k) return k; var b = M.box(0.02, 0.04, 1.0, null, R.mat.glow('#7fd0ff')); b.position.z = -0.55; var w = new THREE.Group(); w.add(b); return w; });
+      var FR = ['food_apple_01', 'lemon', 'food_kiwi_01', 'food_pomegranate_01', 'food_avocado_01', 'food_lime_01'];
+      G.place(g, 'WoodenTable_01', 1.4, 0, 0, -2.6);
       var pr = G.proj(g), fruits = [], lives = 3;
       var KINDS = [['#2fa84f', 0.2, '#ff4f6b'], ['#ff8a00', 0.13, '#ffc04d'], ['#ffe23f', 0.1, '#fff2a8'], ['#d81b60', 0.11, '#ff9ec4'], ['#7cb342', 0.12, '#e6ffcc']];
       function toss() {
         var bomb = Math.random() < 0.15, k = KINDS[Math.floor(Math.random() * KINDS.length)];
-        var m = bomb ? M.sphere(0.13, '#111', 10) : M.sphere(k[1], k[0], 10); m.userData = { t: bomb ? 'bomb' : 'fruit', inner: k[2] };
+        var fi = Math.floor(Math.random() * FR.length), real = !bomb && R.assets.get(FR[fi], { size: 0.24, base: false });
+        var m = real || (bomb ? M.sphere(0.13, '#111', 10) : M.sphere(k[1], k[0], 10)); m.userData = { t: bomb ? 'bomb' : 'fruit', inner: k[2], r: real ? 0.12 : (bomb ? 0.13 : k[1]), col: k[0] };
         m.position.set((Math.random() - 0.5) * 3, 0, -2.4 - Math.random());
         fruits.push(m);
         pr.add({ mesh: m, v: new V(-m.position.x * 0.5, 6.5 + Math.random() * 1.5, 0.6), life: 4, spin: 2, floor: -0.5, onFloor: function (o) { var i = fruits.indexOf(o.mesh); if (i >= 0) { fruits.splice(i, 1); if (o.mesh.userData.t === 'fruit') { lives--; if (lives <= 0) g.end('Deixou cair frutas demais!'); } } } });
@@ -297,13 +311,13 @@
         for (var i = 0; i < ps.length; i++) {
           var p = ps[i]; if (p.angVel < 2.2 && !p.down) continue;
           for (var j = fruits.length - 1; j >= 0; j--) {
-            var f = fruits[j]; tmpS.set(f.position, f.geometry.parameters.radius + 0.08);
+            var f = fruits[j]; tmpS.set(f.position, f.userData.r + 0.08);
             var near = p.ray.ray.intersectsSphere(tmpS) && f.position.distanceTo(p.origin) < (p.down ? 6 : 1.6);
             if (!near) continue;
             fruits.splice(j, 1); f.parent && g.root.remove(f);
             if (f.userData.t === 'bomb') { R.sfx.play('boom'); g.burst(f.position, '#ff8a00', 20, 5); lives = 0; g.end('BOOM! Cortou uma bomba.'); return; }
             g.addScore(1); R.sfx.play('slice'); g.burst(f.position, f.userData.inner, 12, 3);
-            for (var hlf = 0; hlf < 2; hlf++) { var hm = M.sphere(f.geometry.parameters.radius, f.material.color.getStyle(), 8); hm.scale.x = 0.5; hm.position.copy(f.position); pr.add({ mesh: hm, v: new V(hlf ? 1.5 : -1.5, 1, 0), life: 1.2, spin: 6 }); }
+            for (var hlf = 0; hlf < 2; hlf++) { var hm = M.sphere(f.userData.r, f.userData.col, 8); hm.scale.x = 0.5; hm.position.copy(f.position); pr.add({ mesh: hm, v: new V(hlf ? 1.5 : -1.5, 1, 0), life: 1.2, spin: 6 }); }
           }
         }
       });
@@ -311,7 +325,7 @@
     } });
 
   // ---------------------------------------------------------------- Arqueiro
-  R.game({ id: 'arqueiro', name: 'Arqueiro', cat: 'Esporte', c1: '#2f6b3a', c2: '#c9b38a', glyph: '🏹',
+  R.game({ id: 'arqueiro', assets: { sky: 'day' }, name: 'Arqueiro', cat: 'Esporte', c1: '#2f6b3a', c2: '#c9b38a', glyph: '🏹',
     desc: 'Segure o gatilho para puxar a corda (mais tempo = mais força) e solte. Considere a gravidade e o vento!', controls: 'Segure e solte o gatilho. Mire acima de alvos distantes.',
     build: function (g) {
       g.env({ sky: 'day', ground: '#8bbf6a', trees: 40, mountains: true, clouds: 6 });
@@ -345,7 +359,7 @@
     } });
 
   // ---------------------------------------------------------------- Caça-Fantasmas (lanterna)
-  R.game({ id: 'fantasmas', name: 'Casa Assombrada', cat: 'Ação', c1: '#1b1c2b', c2: '#9fd8ff', glyph: '👻',
+  R.game({ id: 'fantasmas', assets: { models: ['Sofa_01', 'ArmChair_01', 'vintage_grandfather_clock_01', 'wooden_bookshelf_worn', 'drawer_cabinet', 'WoodenTable_01', 'vintage_flashlight'] }, name: 'Casa Assombrada', cat: 'Ação', c1: '#1b1c2b', c2: '#9fd8ff', glyph: '👻',
     desc: 'Um casarão escuro. Sua lanterna revela fantasmas: mantenha a luz neles para capturá-los.', controls: 'Aponte a lanterna. Segure o gatilho para o feixe forte.',
     build: function (g) {
       g.env({ sky: 'night', ground: false, light: { hemi: 0.06, dir: 0.02 } });
@@ -353,7 +367,15 @@
       var floor = new THREE.Mesh(M.geo.plane(16, 16), phong('#3a2c20')); floor.rotation.x = -Math.PI / 2; g.add(floor);
       var wallMat = phong('#4a3b2d');
       for (var w = 0; w < 4; w++) { var wl = M.box(16, 5, 0.2, null, wallMat); var a = w * Math.PI / 2; wl.position.set(Math.sin(a) * 8, 2.5, -Math.cos(a) * 8); wl.rotation.y = -a; g.add(wl); }
-      for (var f = 0; f < 10; f++) { var fu = M.box(0.6 + Math.random(), 0.5 + Math.random() * 1.5, 0.6, null, wallMat); var b = Math.random() * 6.28; fu.position.set(Math.sin(b) * 6, fu.geometry.parameters.height / 2, -Math.cos(b) * 6); g.add(fu); }
+      var FURN = [['Sofa_01', 2.0], ['ArmChair_01', 1.0], ['vintage_grandfather_clock_01', 2.1], ['wooden_bookshelf_worn', 2.0], ['drawer_cabinet', 1.2], ['ArmChair_01', 1.0], ['WoodenTable_01', 1.4], ['wooden_bookshelf_worn', 2.0]];
+      var toPhong = function (o) { o.traverse(function (c) { if (c.isMesh) c.material = new THREE.MeshPhongMaterial({ map: c.material.map, color: c.material.color, shininess: 8 }); }); return o; };
+      for (var f = 0; f < FURN.length; f++) {
+        var b = f / FURN.length * Math.PI * 2 + 0.3, fu = R.assets.get(FURN[f][0], { size: FURN[f][1] });
+        if (fu) { toPhong(fu); fu.position.set(Math.sin(b) * 6.6, 0, -Math.cos(b) * 6.6); fu.rotation.y = -b + Math.PI; g.add(fu); }
+        else { fu = M.box(0.6 + Math.random(), 0.5 + Math.random() * 1.5, 0.6, null, wallMat); fu.position.set(Math.sin(b) * 6, fu.geometry.parameters.height / 2, -Math.cos(b) * 6); g.add(fu); }
+      }
+      var fl = R.assets.surface('wood_floor', 6); if (fl) floor.material = new THREE.MeshPhongMaterial({ map: fl.map, shininess: 10 });
+      g.holdAll(function () { return R.assets.holdable('vintage_flashlight', 0.22) || new THREE.Group(); });
       var spot = new THREE.SpotLight('#fff3c4', 2.5, 20, 0.3, 0.5, 1); var tgt = new THREE.Object3D(); spot.target = tgt; g.add(spot, tgt);
       var ghosts = [];
       function ghost() {
@@ -382,25 +404,28 @@
     } });
 
   // ---------------------------------------------------------------- Canhão vs Castelo
-  R.game({ id: 'canhao', name: 'Canhão vs Castelo', cat: 'Física', featured: true, c1: '#5a5f6b', c2: '#ff8a00', glyph: '💣',
+  R.game({ id: 'canhao', assets: { models: ['cannon_01'], sky: 'day' }, name: 'Canhão vs Castelo', cat: 'Física', featured: true, c1: '#5a5f6b', c2: '#ff8a00', glyph: '💣',
     desc: 'Derrube o castelo de blocos com 8 balas de canhão. Física real!', controls: 'Aponte para onde quer atirar e aperte o gatilho.',
     build: function (g) {
       g.env({ sky: 'day', ground: '#7cc576', mountains: true, clouds: 8 });
       var ph = g.phys({ friction: 0.5, iterations: 6 }), blocks = [], shots = 8;
-      var cannon = M.cyl(0.15, 0.2, 1.2, '#333', 10); cannon.rotation.x = Math.PI / 2 - 0.3; cannon.position.set(0.5, 1.1, -0.5); g.add(cannon);
-      var wheel = M.cyl(0.35, 0.35, 0.1, '#5a3d2a', 12); wheel.rotation.z = Math.PI / 2; wheel.position.set(0.5, 0.35, -0.3); g.add(wheel);
+      var realC = R.assets.get('cannon_01', { size: 1.8 }), cannon;
+      if (realC) { cannon = realC; cannon.position.set(0.9, 0, -1.2); g.add(cannon); }
+      else { cannon = M.cyl(0.15, 0.2, 1.2, '#333', 10); cannon.rotation.x = Math.PI / 2 - 0.3; cannon.position.set(0.5, 1.1, -0.5); g.add(cannon);
+        var wheel = M.cyl(0.35, 0.35, 0.1, '#5a3d2a', 12); wheel.rotation.z = Math.PI / 2; wheel.position.set(0.5, 0.35, -0.3); g.add(wheel); }
+      var stone = R.assets.surface('brick_floor', 0.4), stone2 = R.assets.surface('brushed_concrete', 0.4);
       var base = new V(0, 0, -16);
       for (var y = 0; y < 6; y++) for (var x = -3; x <= 3; x++) {
         if (y > 3 && Math.abs(x) < 2) continue;
-        var m = M.box(0.6, 0.6, 0.6, y % 2 ? '#bfb6a6' : '#a89f8f'); m.position.set(base.x + x * 0.62, 0.3 + y * 0.61, base.z); ph.box(m, 0.6, 0.6, 0.6, 2); blocks.push(m);
+        var m = M.box(0.6, 0.6, 0.6, y % 2 ? '#bfb6a6' : '#a89f8f'); if (stone) m.material = y % 2 ? stone : stone2; m.position.set(base.x + x * 0.62, 0.3 + y * 0.61, base.z); ph.box(m, 0.6, 0.6, 0.6, 2); blocks.push(m);
       }
       for (var t = -1; t <= 1; t += 2) for (var y2 = 0; y2 < 3; y2++) { var m2 = M.box(0.6, 0.6, 0.6, '#8f8676'); m2.position.set(base.x + t * 0.62, 3.95 + y2 * 0.61, base.z); ph.box(m2, 0.6, 0.6, 0.6, 2); blocks.push(m2); }
       var flag = M.box(0.5, 0.3, 0.02, '#e23b3b'); flag.position.set(base.x, 5.4, base.z); g.add(flag); var fb = ph.box(flag, 0.5, 0.3, 0.02, 0.3); blocks.push(flag);
       g.on('press', function (p) {
         if (shots <= 0) return; shots--;
         var d = p.dir.clone(); d.y = Math.max(0.05, d.y + 0.12); d.normalize();
-        cannon.lookAt(cannon.position.clone().add(d)); cannon.rotateX(Math.PI / 2);
-        var ball = M.sphere(0.25, '#222', 12); ball.position.copy(new V(0.5, 1.3, -1.2)); var b = ph.sphere(ball, 0.25, 30);
+        if (realC) cannon.rotation.y = Math.atan2(d.x, d.z) + (cannon.userData.yawFix || 0); else { cannon.lookAt(cannon.position.clone().add(d)); cannon.rotateX(Math.PI / 2); }
+        var ball = M.sphere(0.25, '#222', 12); ball.position.copy(new V(0.9, 1.2, -2.2)); var b = ph.sphere(ball, 0.25, 30);
         b.velocity.set(d.x * 24, d.y * 24, d.z * 24); R.sfx.play('boom'); g.burst(ball.position, '#aaa', 10, 2);
         g.setInfo('Balas: ' + shots);
         if (shots === 0) g.after(5, function () { g.end(); });
@@ -413,7 +438,7 @@
     } });
 
   // ---------------------------------------------------------------- Pássaro Saltitante (3D)
-  R.game({ id: 'saltitante', name: 'Pássaro Saltitante', cat: 'Ação', c1: '#3d8bfd', c2: '#7cc576', glyph: '🐤',
+  R.game({ id: 'saltitante', assets: { sky: 'day' }, name: 'Pássaro Saltitante', cat: 'Ação', c1: '#3d8bfd', c2: '#7cc576', glyph: '🐤',
     desc: 'Você É o pássaro. Bata as asas para passar pelos vãos dos canos.', controls: 'Aperte o gatilho para bater as asas.',
     build: function (g) {
       g.env({ sky: 'day', ground: '#7cc576', clouds: 12 });

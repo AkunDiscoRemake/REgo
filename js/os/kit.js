@@ -36,7 +36,9 @@
   var P = Ctx.prototype;
   P.on = function (ev, fn) { this.h[ev].push(fn); return this; };
   P.add = function () { for (var i = 0; i < arguments.length; i++) this.root.add(arguments[i]); return arguments[0]; };
-  P.env = function (opts) { var e = M.env(this.root, opts); this.lights = e.lights; this.sky = e.sky; this.root.fog = this.root.userData.fog; return e; };
+  P.env = function (opts) { var e = M.env(this.root, opts); this.lights = e.lights; this.sky = e.photo ? null : e.sky; this.envKey = this.root.userData.envKey; this.root.fog = this.root.userData.fog; if (this.envKey && R.assets.realistic()) R.assets.setEnv(this.envKey); return e; };
+  // modelo CC0 carregado (ou fallback procedural)
+  P.model = function (name, opts, fallback) { var m = R.assets.get(name, opts); return m || (fallback ? fallback() : null); };
   P.rand = function (a, b) { return a + Math.random() * (b - a); };
   P.irand = function (a, b) { return Math.floor(a + Math.random() * (b - a + 1)); };
   P.pick = function (arr) { return arr[Math.floor(Math.random() * arr.length)]; };
@@ -56,6 +58,7 @@
   // segura objeto na "mão" (filho do ponteiro); removido ao sair
   P.hold = function (p, obj, pos, rot) {
     p.obj.add(obj); if (pos) obj.position.copy(pos); if (rot) obj.rotation.copy(rot);
+    p.holding = true; obj.userData.holder = p;
     this.attached.push(obj); return obj;
   };
   P.holdAll = function (make, pos, rot) {
@@ -167,6 +170,8 @@
     var self = this;
     R.resetPlayer();
     this.def.build(this);
+    // andar em todos os jogos (touchpad), exceto os que controlam o jogador sozinhos
+    if (!this.loco && this.def.walk !== false) this.locomotion({ speed: 2.2 });
     this.applyNight();
     this.player = { x: R.player.x, y: R.player.y, z: R.player.z, yaw: R.player.yaw };
   };
@@ -185,7 +190,14 @@
     for (i = this.timers.length - 1; i >= 0; i--) { var t = this.timers[i]; t.t -= dt; if (t.t <= 0) { this.timers.splice(i, 1); t.fn(); } }
     for (i = this.fx.length - 1; i >= 0; i--) if (this.fx[i](dt) === false) this.fx.splice(i, 1);
   };
+  P.setHolding = function (on) { for (var i = 0; i < this.attached.length; i++) { var h = this.attached[i].userData.holder; if (h) h.holding = on && this.attached[i].visible !== false; } };
+  // lista de assets do jogo (modelos/texturas/céu) usada pelo carregador
+  R.gameAssets = function (def) {
+    var a = def.assets || {};
+    return { models: a.models || [], tex: a.tex || [], sky: a.sky || null };
+  };
   P.dispose = function () {
+    this.setHolding(false);
     for (var j = 0; j < this.h.dispose.length; j++) try { this.h.dispose[j](); } catch (e) {}
     for (var i = 0; i < this.attached.length; i++) if (this.attached[i].parent) this.attached[i].parent.remove(this.attached[i]);
     var toFree = [];

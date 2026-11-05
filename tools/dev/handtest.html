@@ -1,0 +1,17 @@
+<!doctype html><html><body style="margin:0;background:#888"><canvas id="c" width="900" height="300"></canvas>
+<script src="../../js/vendor/three.min.js"></script><script src="../../js/vendor/GLTFLoader.js"></script><script src="../../js/vendor/SkeletonUtils.js"></script>
+<script>window.REGO={assets:{models:{}},input:{pad:{}},rawDt:0.016};</script>
+<script src="../../js/core/hands.js"></script>
+<script>
+var R=REGO,r=new THREE.WebGLRenderer({canvas:document.getElementById('c')}),L=new THREE.GLTFLoader(),n=0;
+r.setScissorTest(true);
+['hand_right','hand_left','oculus_go'].forEach(function(k){L.load('../../assets/models/'+k+'.glb',function(g){R.assets.models[k]=g.scene;if(++n===3)go();});});
+function go(){
+ var sc=new THREE.Scene();sc.add(new THREE.HemisphereLight('#fff','#444',1));var dl=new THREE.DirectionalLight('#fff',.6);dl.position.set(1,2,1);sc.add(dl);
+ var p={model:new THREE.Group(),arm:null};R.hands.attach(p,location.hash==='#left');p.hand.pose(0.85,+(new URLSearchParams(location.search).get('t')||0),0.3);sc.add(p.model);
+ var ax=new THREE.AxesHelper(0.1);sc.add(ax);
+ var views=[[0.35,0,0],[0,0.35,0.001],[0,0,0.35]];
+ views.forEach(function(v,i){var c=new THREE.PerspectiveCamera(40,1,0.01,10);c.position.set(v[0],v[1],v[2]);c.lookAt(0,0,0);r.setViewport(i*300,0,300,300);r.setScissor(i*300,0,300,300);r.render(sc,c);});
+ document.title='done';
+}
+</script></body></html>

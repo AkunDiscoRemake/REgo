@@ -174,19 +174,64 @@
     return { hemi: hemi, dir: dir };
   };
   // cenário completo padrão
+  // instâncias de um modelo GLB (1 draw call por submalha, para dezenas de cópias)
+  M.instances = function (name, list) {
+    var src = R.assets && R.assets.models[name]; if (!src || !list.length) return null;
+    var g = new THREE.Group(); src.updateMatrixWorld(true);
+    var inv = new THREE.Matrix4().copy(src.matrixWorld).invert(), tmp = new THREE.Matrix4(), mm = new THREE.Matrix4();
+    src.traverse(function (o) {
+      if (!o.isMesh) return;
+      var local = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
+      var im = new THREE.InstancedMesh(o.geometry, o.material, list.length);
+      for (var i = 0; i < list.length; i++) {
+        var t = list[i]; tmp.compose(t.p, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), t.r || 0), new THREE.Vector3(t.s, t.s, t.s));
+        im.setMatrixAt(i, mm.multiplyMatrices(tmp, local));
+      }
+      im.frustumCulled = false; g.add(im);
+    });
+    return g;
+  };
+  var SKY_PHOTO = { day: 'day', sunset: 'sunset', lago: 'sunset', night: 'night' };
+  // escolhe textura fotográfica para o chão a partir da cor pedida
+  M.groundTex = function (c) {
+    var hsl = {}; new THREE.Color(c).getHSL(hsl);
+    if (hsl.s < 0.16) return hsl.l > 0.85 ? 'snow_02' : hsl.l > 0.45 ? 'brushed_concrete' : 'asphalt_02';
+    if (hsl.h > 0.18 && hsl.h < 0.47) return 'sparse_grass';
+    if (hsl.h >= 0.07 && hsl.h <= 0.17 && hsl.l > 0.55) return 'coast_sand_01';
+    if (hsl.h < 0.12 || hsl.h > 0.95) return hsl.l < 0.45 ? 'wood_floor' : 'park_dirt';
+    return null;
+  };
   M.env = function (root, opts) {
     opts = opts || {};
-    var sky = M.sky(opts.sky || 'day'); root.add(sky);
-    if (opts.stars || opts.sky === 'night' || opts.sky === 'space' || opts.sky === 'neon') root.add(M.stars(opts.stars || 600, 120));
+    var A = R.assets, isGo = A && !A.realistic();
+    var photo = opts.photo || SKY_PHOTO[opts.sky || 'day'];
+    var sky = A && photo && A.sky[photo] ? A.skyMesh(photo) : null;
+    if (sky) root.userData.envKey = photo; else sky = M.sky(opts.sky || 'day');
+    root.add(sky);
+    if (!sky.material.map && (opts.stars || opts.sky === 'night' || opts.sky === 'space' || opts.sky === 'neon')) root.add(M.stars(opts.stars || 600, 120));
     var l = M.lights(root, opts.light);
     if (opts.ground !== false) {
-      var gr = M.ground(opts.size || 120, opts.ground || '#5aa864', opts.grid); root.add(gr);
+      var size = opts.size || (sky.material.map ? 300 : 120), gcol = opts.ground || '#5aa864';
+      var tname = opts.tex === false ? null : (opts.tex || M.groundTex(gcol));
+      var tint = new THREE.Color('#ffffff').lerp(new THREE.Color(gcol), 0.35);
+      var mat = tname && A ? A.surface(tname, size / 3, tint) : null;
+      var gr = mat ? new THREE.Mesh(M.geo.plane(size, size), mat) : M.ground(size, gcol, opts.grid);
+      if (mat) { gr.rotation.x = -Math.PI / 2; gr.userData.ground = true; }
+      root.add(gr);
     }
-    if (opts.trees) for (var i = 0; i < opts.trees; i++) {
-      var a = Math.random() * Math.PI * 2, d = 14 + Math.random() * 30;
-      var t = M.tree(0.8 + Math.random() * 1.4); t.position.set(Math.cos(a) * d, 0, Math.sin(a) * d); root.add(t);
+    var rnd = function (min, max) { return min + Math.random() * (max - min); };
+    var ring = function (n, r0, r1, s0, s1) { var o = []; for (var i = 0; i < n; i++) { var a = Math.random() * Math.PI * 2, d = rnd(r0, r1); o.push({ p: new THREE.Vector3(Math.cos(a) * d, 0, Math.sin(a) * d), r: Math.random() * 6.28, s: rnd(s0, s1) }); } return o; };
+    if (opts.trees) {
+      var nReal = A && A.models.fir_sapling ? Math.min(opts.trees, isGo ? 14 : 30) : 0;
+      if (nReal) { var hgt = A.sizeOf(A.models.fir_sapling).y || 1; var tr = M.instances('fir_sapling', ring(nReal, 14, 36, 4 / hgt, 7.5 / hgt)); if (tr) root.add(tr); }
+      for (var i = nReal; i < opts.trees; i++) {
+        var a = Math.random() * Math.PI * 2, d = 30 + Math.random() * 25;
+        var t = M.tree(0.8 + Math.random() * 1.4); t.position.set(Math.cos(a) * d, 0, Math.sin(a) * d); root.add(t);
+      }
+      if (A && A.models.shrub_01 && opts.shrubs !== 0) { var sh = M.instances('shrub_01', ring(opts.shrubs || Math.min(10, Math.ceil(opts.trees / 3)), 9, 30, 0.8, 1.6)); if (sh) root.add(sh); }
     }
-    if (opts.mountains) {
+    if (opts.rocks && A && A.models.rock_07) { var rk = M.instances('rock_07', ring(opts.rocks, 10, 35, 0.6, 2.2)); if (rk) root.add(rk); }
+    if (opts.mountains && !sky.material.map) {
       for (var j = 0; j < 14; j++) {
         var an = j / 14 * Math.PI * 2 + Math.random() * 0.2, dd = 70 + Math.random() * 20;
         var mt = new THREE.Mesh(M.flatGeo('mt' + (j % 4), function () { return new THREE.ConeBufferGeometry(1, 1, 5); }), R.mat.lambert(opts.mountains === true ? '#6b7f99' : opts.mountains));
@@ -194,11 +239,11 @@
         mt.position.set(Math.cos(an) * dd, mt.scale.y / 2 - 2, Math.sin(an) * dd); root.add(mt);
       }
     }
-    if (opts.clouds) for (var k = 0; k < opts.clouds; k++) {
+    if (opts.clouds && !sky.material.map) for (var k = 0; k < opts.clouds; k++) {
       var cl = M.cloud(); var ca = Math.random() * 6.28; cl.position.set(Math.cos(ca) * 50, 18 + Math.random() * 10, Math.sin(ca) * 50); cl.scale.setScalar(2 + Math.random() * 2); root.add(cl);
     }
     if (opts.fog) root.userData.fog = new THREE.Fog(opts.fog[0], opts.fog[1], opts.fog[2]);
-    return { sky: sky, lights: l };
+    return { sky: sky, lights: l, photo: !!sky.material.map };
   };
 
   // sombra "blob" barata (sem shadow maps)
