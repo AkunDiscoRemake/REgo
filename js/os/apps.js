@@ -564,6 +564,6 @@
   webApp('whatsapp', 'WhatsApp', 'whatsapp', 'https://web.whatsapp.com');
 
   // ordem do Início
-  var order = ['store', 'videos', 'chat', 'webbrowser', 'androidapps', 'browser', 'cloudplay', 'tv', 'gallery', 'camera', 'clock', 'calendar', 'calculator', 'files', 'messenger', 'remote', 'settings', 'help', 'facebook', 'instagram', 'whatsapp'];
+  var order = ['store', 'ambiente3d', 'videos', 'chat', 'webbrowser', 'androidapps', 'browser', 'cloudplay', 'tv', 'gallery', 'camera', 'clock', 'calendar', 'calculator', 'files', 'messenger', 'remote', 'settings', 'help', 'facebook', 'instagram', 'whatsapp'];
   R.APP_ORDER = order;
 })();

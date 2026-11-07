@@ -61,6 +61,7 @@
     ['video', 'video', 'Vídeo'], ['shots', 'image', 'Capturas'], ['settings', 'sliders-horizontal', 'Ajustes'], ['about', 'info', 'Sobre']];
   // ícones próprios no estilo iOS: [glifo Lucide, cor topo-esquerda, cor base-direita]. Arte original (Lucide, ISC).
   var APPICON = {
+    ambiente3d: ['box', '#6a9bff', '#2a4fb0'],
     store: ['store', '#b06bff', '#6a24e0'], videos: ['play', '#ff7a66', '#e5344b'], chat: ['message-circle', '#5ff07f', '#17a84a'],
     browser: ['compass', '#64b5ff', '#1e6fe0'], webbrowser: ['compass', '#64b5ff', '#1e6fe0'], androidapps: ['layout-grid', '#6fe08a', '#1f9d3a'],
     cloudplay: ['cloud', '#9aa3b2', '#3a3f4b'], tv: ['tv', '#5a86ff', '#1b3fb0'], gallery: ['image', '#ff9a62', '#ff3f7f'],

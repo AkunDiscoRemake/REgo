@@ -43,7 +43,20 @@ export const MODELS = {
   // natureza / exterior (árvores grandes do Poly Haven têm folhas demais para o Go; usamos mudas e arbustos)
   shrub_01: [1500, 512], fir_sapling: [1500, 512], namaqualand_boulder_02: [800, 512],
   rock_07: [800, 512], moon_rock_01: [600, 512], street_lamp_01: [900, 256], fire_hydrant: [700, 256],
-  wooden_picnic_table: [800, 512], lifebuoy: [500, 256], wooden_bucket_01: [500, 256]
+  wooden_picnic_table: [800, 512], lifebuoy: [500, 256], wooden_bucket_01: [500, 256],
+  // === Ambiente 3D (móveis, decoração, plantas, luminárias — CC0 Poly Haven) ===
+  CoffeeTable_01: [1500, 512], modern_coffee_table_01: [1500, 512], coffee_table_round_01: [1500, 512], round_wooden_table_01: [1200, 512],
+  dining_table: [1500, 512], side_table_01: [1000, 512], GreenChair_01: [2000, 512], Ottoman_01: [1500, 512], Rockingchair_01: [2200, 512],
+  modern_arm_chair_01: [2200, 512], mid_century_lounge_chair: [2200, 512], painted_wooden_chair_01: [1500, 512], dining_chair_02: [1800, 512],
+  folding_wooden_stool: [1200, 512], sofa_02: [2500, 512], sofa_03: [2500, 512],
+  potted_plant_01: [2200, 512], potted_plant_02: [2200, 512], potted_plant_04: [2200, 512], anthurium_botany_01: [2000, 512],
+  calathea_orbifolia_01: [2200, 512], shrub_02: [1500, 512], shrub_03: [1500, 512], shrub_04: [1500, 512], rock_moss_set_01: [1200, 512],
+  ceramic_vase_02: [900, 512], ceramic_vase_03: [900, 512], brass_vase_01: [900, 512], wooden_bowl_01: [700, 512],
+  fancy_picture_frame_01: [600, 512], hanging_picture_frame_01: [500, 512],
+  mantel_clock_01: [1200, 512], wall_clock: [900, 512], chess_set: [2500, 512], tea_set_01: [1800, 512],
+  desk_lamp_arm_01: [1200, 256], modern_ceiling_lamp_01: [1200, 256], hanging_industrial_lamp: [1200, 256],
+  wicker_basket_01: [1200, 512], wicker_basket_02: [1200, 512], boombox: [1200, 512],
+  stone_fire_pit: [1500, 512], planter_box_01: [700, 512], outdoor_table_chair_set_01: [2500, 512]
 };
 // texturas de superfície (cor com AO 512 px + normal 256 px)
 export const TEXTURES = ['sparse_grass', 'leafy_grass', 'wood_floor', 'asphalt_02', 'coast_sand_01', 'snow_02', 'brushed_concrete',

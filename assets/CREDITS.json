@@ -150,19 +150,19 @@
   "source": "https://polyhaven.com/a/baseball_01",
   "license": "CC0 1.0",
   "author": "Poly Haven",
-  "tris": 1430
+  "tris": 1312
  },
  "models/american_football.glb": {
   "source": "https://polyhaven.com/a/american_football",
   "license": "CC0 1.0",
   "author": "Poly Haven",
-  "tris": 824
+  "tris": 500
  },
  "models/football.glb": {
   "source": "https://polyhaven.com/a/football",
   "license": "CC0 1.0",
   "author": "Poly Haven",
-  "tris": 1042
+  "tris": 598
  },
  "models/wooden_axe.glb": {
   "source": "https://polyhaven.com/a/wooden_axe",
@@ -216,7 +216,7 @@
   "source": "https://polyhaven.com/a/metal_detector",
   "license": "CC0 1.0",
   "author": "Poly Haven",
-  "tris": 2485
+  "tris": 2311
  },
  "models/rubber_duck_toy.glb": {
   "source": "https://polyhaven.com/a/rubber_duck_toy",
@@ -240,13 +240,13 @@
   "source": "https://polyhaven.com/a/food_kiwi_01",
   "license": "CC0 1.0",
   "author": "Poly Haven",
-  "tris": 302
+  "tris": 298
  },
  "models/lemon.glb": {
   "source": "https://polyhaven.com/a/lemon",
   "license": "CC0 1.0",
   "author": "Poly Haven",
-  "tris": 446
+  "tris": 300
  },
  "models/food_pomegranate_01.glb": {
   "source": "https://polyhaven.com/a/food_pomegranate_01",
@@ -270,7 +270,7 @@
   "source": "https://polyhaven.com/a/wine_barrel_01",
   "license": "CC0 1.0",
   "author": "Poly Haven",
-  "tris": 2887
+  "tris": 1915
  },
  "models/Barrel_01.glb": {
   "source": "https://polyhaven.com/a/Barrel_01",
@@ -282,13 +282,13 @@
   "source": "https://polyhaven.com/a/wooden_crate_01",
   "license": "CC0 1.0",
   "author": "Poly Haven",
-  "tris": 988
+  "tris": 586
  },
  "models/cardboard_box_01.glb": {
   "source": "https://polyhaven.com/a/cardboard_box_01",
   "license": "CC0 1.0",
   "author": "Poly Haven",
-  "tris": 300
+  "tris": 378
  },
  "models/old_tyre.glb": {
   "source": "https://polyhaven.com/a/old_tyre",
@@ -312,7 +312,7 @@
   "source": "https://polyhaven.com/a/ceramic_vase_01",
   "license": "CC0 1.0",
   "author": "Poly Haven",
-  "tris": 1382
+  "tris": 1078
  },
  "models/Television_01.glb": {
   "source": "https://polyhaven.com/a/Television_01",
@@ -384,7 +384,7 @@
   "source": "https://polyhaven.com/a/wooden_lantern_01",
   "license": "CC0 1.0",
   "author": "Poly Haven",
-  "tris": 1315
+  "tris": 954
  },
  "models/wine_bottles_01.glb": {
   "source": "https://polyhaven.com/a/wine_bottles_01",
@@ -456,13 +456,13 @@
   "source": "https://polyhaven.com/a/moon_rock_01",
   "license": "CC0 1.0",
   "author": "Poly Haven",
-  "tris": 709
+  "tris": 619
  },
  "models/street_lamp_01.glb": {
   "source": "https://polyhaven.com/a/street_lamp_01",
   "license": "CC0 1.0",
   "author": "Poly Haven",
-  "tris": 1084
+  "tris": 1134
  },
  "models/fire_hydrant.glb": {
   "source": "https://polyhaven.com/a/fire_hydrant",
@@ -474,13 +474,13 @@
   "source": "https://polyhaven.com/a/lifebuoy",
   "license": "CC0 1.0",
   "author": "Poly Haven",
-  "tris": 499
+  "tris": 649
  },
  "models/wooden_bucket_01.glb": {
   "source": "https://polyhaven.com/a/wooden_bucket_01",
   "license": "CC0 1.0",
   "author": "Poly Haven",
-  "tris": 1262
+  "tris": 565
  },
  "models/wooden_picnic_table.glb": {
   "source": "https://polyhaven.com/a/wooden_picnic_table",
@@ -528,5 +528,269 @@
   "source": "https://polyhaven.com/a/interior_construction",
   "license": "CC0 1.0",
   "author": "Poly Haven"
+ },
+ "models/CoffeeTable_01.glb": {
+  "source": "https://polyhaven.com/a/CoffeeTable_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1498
+ },
+ "models/modern_coffee_table_01.glb": {
+  "source": "https://polyhaven.com/a/modern_coffee_table_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1499
+ },
+ "models/coffee_table_round_01.glb": {
+  "source": "https://polyhaven.com/a/coffee_table_round_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1500
+ },
+ "models/round_wooden_table_01.glb": {
+  "source": "https://polyhaven.com/a/round_wooden_table_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1320
+ },
+ "models/Ottoman_01.glb": {
+  "source": "https://polyhaven.com/a/Ottoman_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1499
+ },
+ "models/side_table_01.glb": {
+  "source": "https://polyhaven.com/a/side_table_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1000
+ },
+ "models/GreenChair_01.glb": {
+  "source": "https://polyhaven.com/a/GreenChair_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 2000
+ },
+ "models/dining_table.glb": {
+  "source": "https://polyhaven.com/a/dining_table",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1048
+ },
+ "models/Rockingchair_01.glb": {
+  "source": "https://polyhaven.com/a/Rockingchair_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 2200
+ },
+ "models/mid_century_lounge_chair.glb": {
+  "source": "https://polyhaven.com/a/mid_century_lounge_chair",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 2200
+ },
+ "models/painted_wooden_chair_01.glb": {
+  "source": "https://polyhaven.com/a/painted_wooden_chair_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 724
+ },
+ "models/modern_arm_chair_01.glb": {
+  "source": "https://polyhaven.com/a/modern_arm_chair_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 2198
+ },
+ "models/sofa_02.glb": {
+  "source": "https://polyhaven.com/a/sofa_02",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 2497
+ },
+ "models/dining_chair_02.glb": {
+  "source": "https://polyhaven.com/a/dining_chair_02",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1800
+ },
+ "models/folding_wooden_stool.glb": {
+  "source": "https://polyhaven.com/a/folding_wooden_stool",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1199
+ },
+ "models/sofa_03.glb": {
+  "source": "https://polyhaven.com/a/sofa_03",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 2506
+ },
+ "models/potted_plant_04.glb": {
+  "source": "https://polyhaven.com/a/potted_plant_04",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 2198
+ },
+ "models/potted_plant_02.glb": {
+  "source": "https://polyhaven.com/a/potted_plant_02",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 2908
+ },
+ "models/calathea_orbifolia_01.glb": {
+  "source": "https://polyhaven.com/a/calathea_orbifolia_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 2197
+ },
+ "models/anthurium_botany_01.glb": {
+  "source": "https://polyhaven.com/a/anthurium_botany_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 2846
+ },
+ "models/shrub_02.glb": {
+  "source": "https://polyhaven.com/a/shrub_02",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1453
+ },
+ "models/shrub_03.glb": {
+  "source": "https://polyhaven.com/a/shrub_03",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1493
+ },
+ "models/shrub_04.glb": {
+  "source": "https://polyhaven.com/a/shrub_04",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1387
+ },
+ "models/potted_plant_01.glb": {
+  "source": "https://polyhaven.com/a/potted_plant_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 9608
+ },
+ "models/ceramic_vase_02.glb": {
+  "source": "https://polyhaven.com/a/ceramic_vase_02",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1162
+ },
+ "models/rock_moss_set_01.glb": {
+  "source": "https://polyhaven.com/a/rock_moss_set_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1377
+ },
+ "models/ceramic_vase_03.glb": {
+  "source": "https://polyhaven.com/a/ceramic_vase_03",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 900
+ },
+ "models/brass_vase_01.glb": {
+  "source": "https://polyhaven.com/a/brass_vase_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 899
+ },
+ "models/wooden_bowl_01.glb": {
+  "source": "https://polyhaven.com/a/wooden_bowl_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 700
+ },
+ "models/fancy_picture_frame_01.glb": {
+  "source": "https://polyhaven.com/a/fancy_picture_frame_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 599
+ },
+ "models/wall_clock.glb": {
+  "source": "https://polyhaven.com/a/wall_clock",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 945
+ },
+ "models/hanging_picture_frame_01.glb": {
+  "source": "https://polyhaven.com/a/hanging_picture_frame_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 502
+ },
+ "models/mantel_clock_01.glb": {
+  "source": "https://polyhaven.com/a/mantel_clock_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1218
+ },
+ "models/tea_set_01.glb": {
+  "source": "https://polyhaven.com/a/tea_set_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1788
+ },
+ "models/modern_ceiling_lamp_01.glb": {
+  "source": "https://polyhaven.com/a/modern_ceiling_lamp_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1248
+ },
+ "models/hanging_industrial_lamp.glb": {
+  "source": "https://polyhaven.com/a/hanging_industrial_lamp",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1476
+ },
+ "models/desk_lamp_arm_01.glb": {
+  "source": "https://polyhaven.com/a/desk_lamp_arm_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 2706
+ },
+ "models/chess_set.glb": {
+  "source": "https://polyhaven.com/a/chess_set",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1864
+ },
+ "models/wicker_basket_01.glb": {
+  "source": "https://polyhaven.com/a/wicker_basket_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1520
+ },
+ "models/wicker_basket_02.glb": {
+  "source": "https://polyhaven.com/a/wicker_basket_02",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1618
+ },
+ "models/stone_fire_pit.glb": {
+  "source": "https://polyhaven.com/a/stone_fire_pit",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1499
+ },
+ "models/boombox.glb": {
+  "source": "https://polyhaven.com/a/boombox",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 1528
+ },
+ "models/planter_box_01.glb": {
+  "source": "https://polyhaven.com/a/planter_box_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 700
+ },
+ "models/outdoor_table_chair_set_01.glb": {
+  "source": "https://polyhaven.com/a/outdoor_table_chair_set_01",
+  "license": "CC0 1.0",
+  "author": "Poly Haven",
+  "tris": 5023
  }
 }
