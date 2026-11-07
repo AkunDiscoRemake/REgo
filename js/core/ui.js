@@ -18,6 +18,18 @@
   };
   // estilo Wpollo: vidro grafite fosco, borda sutil, destaque azul
   ui.ACCENT = '#8a3cf0'; ui.ACCENT_H = '#a25cff';
+  // squircle (superelipse) estilo iOS: curvatura contínua, mais suave que um retângulo arredondado
+  ui.squircle = function (x, X, Y, W, H, n) {
+    n = n || 4.6; var a = W / 2, b = H / 2, cx = X + a, cy = Y + b, N = 56;
+    x.beginPath();
+    for (var i = 0; i <= N; i++) {
+      var t = i / N * Math.PI * 2, ct = Math.cos(t), st = Math.sin(t);
+      var px = cx + a * Math.sign(ct) * Math.pow(Math.abs(ct), 2 / n);
+      var py = cy + b * Math.sign(st) * Math.pow(Math.abs(st), 2 / n);
+      if (i === 0) x.moveTo(px, py); else x.lineTo(px, py);
+    }
+    x.closePath();
+  };
   ui.glass = function (x, X, Y, W, H, r, tint) {
     var g = x.createLinearGradient(0, Y, 0, Y + H);
     g.addColorStop(0, tint ? tint[0] : 'rgba(58,62,74,0.86)'); g.addColorStop(1, tint ? tint[1] : 'rgba(34,37,46,0.88)');

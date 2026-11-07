@@ -156,6 +156,13 @@ O servidor fica em [`server/chat`](server/chat/README.md) e é você quem hosped
 - `tools/build-assets.mjs`: baixa e otimiza modelos, texturas e céus CC0. Rode com `cd tools && npm i && node build-assets.mjs`.
 - `tools/dev/`: páginas de teste (pose das mãos, hand tracking com imagem).
 
+## Ícones dos apps
+
+Os ícones dos apps são **arte própria**, desenhados por código (tiles squircle com gradiente e brilho,
+glifos de linha da [Lucide](https://lucide.dev), ISC). O **estilo visual é inspirado na linguagem de ícones
+arredondados do iOS da Apple** — **crédito à Apple pela inspiração do visual**. Não há uso de nenhuma arte,
+logotipo ou marca da Apple; nenhuma afiliação.
+
 ## Licenças
 
 Veja [`assets/LICENSES.md`](assets/LICENSES.md) e [`assets/CREDITS.json`](assets/CREDITS.json).

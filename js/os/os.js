@@ -59,10 +59,16 @@
   var CATS = ['Todos', 'Destaques', 'Ação', 'Esporte', 'Física', 'Puzzle', 'Música', 'Relax', 'Corrida'];
   var NAV = [['home', 'house', 'Início'], ['library', 'layout-grid', 'Biblioteca'], ['hands', 'hand', 'Modelos de mãos'], ['env', 'sun', 'Ambiente'],
     ['video', 'video', 'Vídeo'], ['shots', 'image', 'Capturas'], ['settings', 'sliders-horizontal', 'Ajustes'], ['about', 'info', 'Sobre']];
-  var APPICON = { videos: ['play', '#e5484d'], webbrowser: ['globe', '#2f7bf6'], androidapps: ['layout-grid', '#30a46c'], chat: ['message-square', '#30a46c'], store: ['store', '#8a3cf0'], browser: ['globe', '#2f7bf6'], cloudplay: ['cloud', '#3a3f4b'], tv: ['tv', '#e5484d'], gallery: ['image', '#f2994a'],
-    camera: ['camera', '#ff5d8f'], clock: ['clock', '#30a46c'], calendar: ['calendar', '#e5484d'], calculator: ['calculator', '#5f6b7a'], files: ['folder', '#2f7bf6'],
-    messenger: ['message-square', '#8a3cf0'], remote: ['monitor', '#0ea5a4'], settings: ['settings', '#5f6b7a'], help: ['circle-help', '#2f7bf6'],
-    facebook: ['globe', '#1877f2'], instagram: ['aperture', '#d62976'], whatsapp: ['message-square', '#25d366'] };
+  // ícones próprios no estilo iOS: [glifo Lucide, cor topo-esquerda, cor base-direita]. Arte original (Lucide, ISC).
+  var APPICON = {
+    store: ['store', '#b06bff', '#6a24e0'], videos: ['play', '#ff7a66', '#e5344b'], chat: ['message-circle', '#5ff07f', '#17a84a'],
+    browser: ['compass', '#64b5ff', '#1e6fe0'], webbrowser: ['compass', '#64b5ff', '#1e6fe0'], androidapps: ['layout-grid', '#6fe08a', '#1f9d3a'],
+    cloudplay: ['cloud', '#9aa3b2', '#3a3f4b'], tv: ['tv', '#5a86ff', '#1b3fb0'], gallery: ['image', '#ff9a62', '#ff3f7f'],
+    camera: ['camera', '#c2c8d2', '#5a616c'], clock: ['clock', '#3a3f4b', '#0c0d10'], calendar: ['calendar-days', '#ff7a66', '#e5344b'],
+    calculator: ['calculator', '#4a4f58', '#17191f'], files: ['folder', '#64b5ff', '#1e6fe0'], messenger: ['bell', '#b06bff', '#6a24e0'],
+    remote: ['monitor-smartphone', '#3fe0cf', '#0e9e92'], settings: ['settings', '#c2c8d2', '#5a616c'], help: ['life-buoy', '#64b5ff', '#1e6fe0'],
+    facebook: ['thumbs-up', '#5a9cff', '#1877f2'], instagram: ['aperture', '#ff6a9c', '#a93cff'], whatsapp: ['message-square', '#5ff07f', '#17a84a']
+  };
   var logoImg = new Image(); logoImg.onload = function () { ui.markAllDirty(); }; logoImg.src = 'assets/brand/logo_512.png';
   function gamesFiltered() {
     if (st.cat === 'Todos') return R.gameList;
@@ -72,12 +78,24 @@
   function gameIcon(g) { return ui.genIcon('g:' + g.id, g.c1 || '#5b6cff', g.c2 || '#b14cff', g.glyph || '🎮'); }
   os.gameIcon = gameIcon;
   // bloco de app: quadrado arredondado com ícone de linha (estilo da referência)
+  function shade(hex, f) { // clareia (f>0) ou escurece (f<0) uma cor hex
+    var n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255, m = f < 0 ? 0 : 255, t = Math.abs(f);
+    return 'rgb(' + Math.round(r + (m - r) * t) + ',' + Math.round(g + (m - g) * t) + ',' + Math.round(b + (m - b) * t) + ')';
+  }
   function appTile(x, a, X, Y, S, hov) {
-    var ic = APPICON[a.id] || ['box', '#5f6b7a'];
-    ui.roundRect(x, X, Y, S, S, S * 0.26);
-    var g = x.createLinearGradient(X, Y, X + S, Y + S); g.addColorStop(0, ic[1]); g.addColorStop(1, 'rgba(20,22,30,0.9)');
-    x.fillStyle = g; x.fill(); x.lineWidth = hov ? 4 : 2; x.strokeStyle = hov ? '#fff' : 'rgba(255,255,255,0.18)'; x.stroke();
-    ui.icon(x, ic[0], X + S * 0.25, Y + S * 0.25, S * 0.5, '#fff', 1.8);
+    var ic = APPICON[a.id] || ['box', '#8a909b', '#4a4f58'], c1 = ic[1], c2 = ic[2] || shade(ic[1], -0.45);
+    x.save();
+    if (hov) { x.shadowColor = 'rgba(0,0,0,0.45)'; x.shadowBlur = S * 0.22; x.shadowOffsetY = S * 0.06; }
+    ui.squircle(x, X, Y, S, S);                    // corpo squircle
+    var g = x.createLinearGradient(X, Y, X, Y + S); g.addColorStop(0, c1); g.addColorStop(1, c2);
+    x.fillStyle = g; x.fill(); x.restore();
+    x.save(); ui.squircle(x, X, Y, S, S); x.clip();  // brilho suave no topo (vidro)
+    var hl = x.createLinearGradient(X, Y, X, Y + S * 0.55);
+    hl.addColorStop(0, 'rgba(255,255,255,0.28)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = hl; x.fillRect(X, Y, S, S * 0.55); x.restore();
+    ui.squircle(x, X + 0.6, Y + 0.6, S - 1.2, S - 1.2); x.lineWidth = hov ? 2.5 : 1.2; x.strokeStyle = hov ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.22)'; x.stroke();
+    x.save(); x.shadowColor = 'rgba(0,0,0,0.25)'; x.shadowBlur = S * 0.04; x.shadowOffsetY = S * 0.02;
+    ui.icon(x, ic[0], X + S * 0.26, Y + S * 0.26, S * 0.48, '#fff', 2.2); x.restore();
   }
   os.appTile = appTile;
 
@@ -192,7 +210,7 @@
       if (logoImg.complete && logoImg.naturalWidth) x.drawImage(logoImg, 40, 40, 300, 300 * logoImg.naturalHeight / logoImg.naturalWidth);
       ui.text(x, 'Wpollo VR', 380, 90, 44, { weight: 800 });
       ui.text(x, 'Versão 2.0 • ' + R.gameList.length + ' jogos', 380, 136, 22, { color: 'rgba(255,255,255,0.7)' });
-      ui.wrap(x, 'Feito para reviver o Oculus Go e transformar qualquer celular num headset com VR Box. Motor: three.js r128 + cannon.js. Modelos, texturas e fotos 360°: Poly Haven (CC0). Mãos: WebXR Input Profiles (MIT). Ícones: Lucide (ISC). Hand tracking: MediaPipe (Apache-2.0). Sem afiliação com Meta, Roblox ou outras marcas.', 380, 170, W - 420, 20, 30);
+      ui.wrap(x, 'Sistema e jogos em WebXR para o Oculus Go. Motor: three.js r128 + cannon.js. Modelos, texturas e fotos 360°: Poly Haven (CC0). Mãos: WebXR Input Profiles (MIT). Glifos dos ícones: Lucide (ISC). Os ícones dos apps são arte própria, no estilo de ícones arredondados inspirado no iOS da Apple — Apple é creditada pela inspiração do visual; não há afiliação nem uso de arte da Apple, Meta, Roblox ou outras marcas.', 380, 170, W - 420, 20, 30);
     }
   }
   var shotCache = {};
