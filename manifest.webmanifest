@@ -1,7 +1,7 @@
 {
   "name": "Wpollo VR",
   "short_name": "Wpollo VR",
-  "description": "Sistema WebXR para reviver o Oculus Go: 60+ jogos, multitarefa e UI estilo visionOS.",
+  "description": "Sistema e jogos em VR para o Oculus Go (WebXR).",
   "start_url": "./index.html",
   "display": "fullscreen",
   "orientation": "landscape",

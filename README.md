@@ -2,20 +2,32 @@
 
 # Wpollo VR
 
-VR para **Oculus Go** (site WebXR) e para **celular no VR Box** (site ou APK). Inclui 62 jogos, ambientes
-fotográficos, hand tracking por câmera, realidade mista, Joy-Con, multitarefa e um mensageiro próprio.
+Sistema e **62 jogos** em **WebXR para o Oculus Go**, rodando no Oculus Browser. Ambientes fotográficos 360°,
+multitarefa, menu de pausa, modificadores e um mensageiro próprio.
 
 > O logo é do autor do projeto. Não há afiliação com Meta, Roblox, WhatsApp ou qualquer marca citada.
 
-## Duas versões
+## Como usar no Oculus Go
 
-| | **Site** | **APK** |
-|---|---|---|
-| Para | Oculus Go (Oculus Browser), Quest, PC, celular | celular Android num VR Box |
-| Como | GitHub Pages: abra o link e toque em **Entrar no VR** | instale `WpolloVR.apk` (gerado pelo Actions, veja abaixo) |
-| Hand tracking | ONNX Runtime Web: WebGPU > CPU | **nativo: TFLite (LiteRT) com NNAPI (NPU), GPU ou XNNPACK — mede e usa o mais rápido** |
-| 6DoF | ARCore pelo WebXR (Chrome Android) | — (o WebView do Android não tem WebXR); use o site no Chrome |
-| Offline | depois da 1ª visita (service worker) | sempre (tudo dentro do APK) |
+1. No **Oculus Browser** do Go, abra o site (GitHub Pages).
+2. Toque em **🥽 Entrar no VR**.
+3. Depois da primeira visita, funciona **offline** (service worker).
+
+Dá para testar no PC/celular em **Modo 2D** (mouse = gatilho, botão direito arrasta para olhar, WASD = touchpad).
+
+### Por que não é um APK nativo?
+
+O Go só entra em VR pelo Oculus Browser (WebXR). Um APK comum com WebView mostra só o 2D — não entra em VR.
+Um app nativo exigiria o **VrApi** (C++/OpenGL ES): o SDK não é mais distribuído publicamente pela Meta (o Go
+foi descontinuado) e portar os 62 jogos de three.js para C++ seria reescrever o projeto do zero. Por isso o
+Wpollo VR é um site WebXR — que no Go usa o mesmo compositor VR (timewarp, foveation, 72 Hz) por baixo.
+
+<details><summary>Modo VR Box (descontinuado)</summary>
+
+Houve uma versão para celular em VR Box (APK com hand tracking por câmera, realidade mista, 6DoF por ARCore).
+Ela foi descontinuada em favor do foco no Oculus Go. O código ainda está no histórico do Git e na pasta
+`android/`, mas não faz parte do site.
+</details>
 
 ## Modo VR Box (celular)
 

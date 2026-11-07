@@ -1,4 +1,4 @@
-/* Wpollo VR — bootstrap e tela inicial (única UI 2D: entrada e configuração do VR Box) */
+/* Wpollo VR — bootstrap (Oculus Go / WebXR). Única tela 2D: a entrada. */
 (function () {
   'use strict';
   var R = window.REGO;
@@ -11,9 +11,9 @@
   setTimeout(function () { $('loading').classList.add('done'); }, 200);
   function started() { document.body.classList.add('started'); }
 
-  var btn = $('enter'), isPhone = R.vrbox.isPhone(), apk = R.vrbox.isApk();
+  var btn = $('enter');
   R.xrSupported(function (ok) {
-    if (!ok) { btn.textContent = 'VR (WebXR) indisponível aqui'; if (isPhone || apk) btn.style.display = 'none'; return; }
+    if (!ok) { btn.textContent = 'WebXR indisponível aqui'; return; }
     btn.disabled = false; btn.textContent = '🥽 Entrar no VR';
     btn.addEventListener('click', function () {
       R.enterVR().then(started).catch(function (e) { R.ui.toast('Falha ao entrar no VR: ' + e.message, 4); });
@@ -22,52 +22,12 @@
   $('go2d').addEventListener('click', function () { R.sfx.resume(); started(); });
   R.onEnterXR = started;
 
-  // ------------------------------------------------------------ VR Box: formulário de configuração
-  var form = $('boxcfg'), splash = $('splash');
-  function showBox() { splash.hidden = true; form.hidden = false; fill(); }
-  $('openbox').addEventListener('click', showBox);
-  $('backsplash').addEventListener('click', function () { form.hidden = true; splash.hidden = false; });
-  if (apk || (isPhone && !/Pacific/.test(navigator.userAgent))) { $('openbox').textContent = '📱 Configurar VR Box'; }
-  var VB = R.vrbox.cfg, HT = R.handtrack.cfg;
-  var MAP = { track: [VB, 'track'], distortion: [VB, 'distortion', 'bool'], ipd: [VB, 'ipd', 'num'], fov: [VB, 'fov', 'num'], predictMs: [VB, 'predictMs', 'num'], scale: [VB, 'scale', 'num'], useMag: [VB, 'useMag', 'bool'], flip: [VB, 'flip'], accelMove: [VB, 'accelMove', 'bool'],
-    engine: [HT, 'engine'], async: [HT, 'async', 'bool'], filter: [HT, 'filter'], minCutoff: [HT, 'minCutoff', 'num'], beta: [HT, 'beta', 'num'], kalmanQ: [HT, 'kalmanQ', 'num'],
-    predictMs_h: [HT, 'predictMs', 'num'], camRes: [HT, 'camRes'], detEvery: [HT, 'detEvery', 'num'], maxHands: [HT, 'maxHands', 'num'], camFov: [HT, 'camFov', 'num'], mrHand: [HT, 'mrHand', 'bool'] };
-  function fill() {
-    Object.keys(MAP).forEach(function (n) {
-      var el = form.elements[n], m = MAP[n], v = m[0][m[1]]; if (!el) return;
-      el.value = m[2] === 'bool' ? (v ? '1' : '0') : String(v);
-      var out = el.parentNode.querySelector('output'); if (out) { out.textContent = el.value; el.oninput = function () { out.textContent = el.value; }; }
-    });
-    form.elements.handStyle.value = /fofinho|classico/.test(R.settings.handStyle) ? R.settings.handStyle : 'realista';
-    form.elements.htOn.value = R.store.get('htOn', true) ? '1' : '0';
-    var info = $('npuinfo');
-    info.textContent = ('ml' in navigator ? 'WebNN detectado: a NPU pode ser usada. ' : 'Este navegador não expõe WebNN: a opção NPU cai automaticamente para GPU ou CPU. ') +
-      (navigator.gpu ? 'WebGPU disponível.' : 'Sem WebGPU: GPU cai para CPU.') + ' Modelos: RTMDet-nano + RTMPose-m (OpenMMLab, Apache-2.0).';
-    R.vrbox.arSupported(function (ok) { var o = form.elements.track.querySelector('option[value="6dof"]'); o.disabled = !ok; if (!ok) { o.textContent = '6DoF — ARCore (indisponível neste navegador)'; if (form.elements.track.value === '6dof') form.elements.track.value = '3dof'; } });
-  }
-  $('startbox').addEventListener('click', function () {
-    Object.keys(MAP).forEach(function (n) { var el = form.elements[n], m = MAP[n]; if (!el) return; m[0][m[1]] = m[2] === 'bool' ? el.value === '1' : m[2] === 'num' ? parseFloat(el.value) : el.value; });
-    R.settings.handStyle = form.elements.handStyle.value; R.saveSettings();
-    var htOn = form.elements.htOn.value === '1'; R.store.set('htOn', htOn);
-    R.handtrack.save(); R.handtrack.applyStyle();
-    var mr = form.elements.mr.value === '1';
-    started();
-    var go;
-    try { go = R.vrbox.start(); } catch (e) { document.body.classList.remove('started'); alert('Falha ao iniciar o VR Box: ' + e.message); return; }
-    go.then(function () {
-      R.input.refresh();
-      if (htOn) R.handtrack.start();
-      if (mr) R.vrbox.togglePassthrough();
-      setTimeout(function () { R.recenter(); }, 600);
-    });
-  });
-  // APK: abre a configuração do VR Box direto (só agora, com tudo acima já definido)
-  if (apk) showBox();
-  // service worker: cache offline => abre instantâneo
-  if ('serviceWorker' in navigator && location.protocol === 'https:' && !apk) {
+  // service worker: abre instantâneo e funciona offline no Go
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
     navigator.serviceWorker.register('sw.js').catch(function () {});
-    // se uma versão nova assumir antes de começar, recarrega uma vez (evita misturar versões)
     var had = !!navigator.serviceWorker.controller, reloaded = false;
-    navigator.serviceWorker.addEventListener('controllerchange', function () { if (had && !reloaded && !document.body.classList.contains('started')) { reloaded = true; location.reload(); } });
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (had && !reloaded && !document.body.classList.contains('started')) { reloaded = true; location.reload(); }
+    });
   }
 })();

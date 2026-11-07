@@ -150,7 +150,7 @@
       P.button('next', W / 2 + 86, H - 66, 64, 48, '', function () { st.page = Math.min(pages - 1, st.page + 1); }, { lucide: 'arrow-right' });
       P.state.pages = pages;
     } else if (st.tab === 'hands') {
-      header(x, 'Modelos de mãos', 'Como suas mãos aparecem no VR');
+      header(x, 'Modelos de mãos', 'Como a mão que segura o controle aparece');
       var styles = [['controle', 'Controle do Go', 'gamepad-2'], ['realista', 'Mão + controle', 'hand'], ['classico', 'Luva Clássica', 'hand-metal'], ['fofinho', 'Luva Fofinha', 'sparkles']];
       styles.forEach(function (sd, i) {
         var X = 40 + i * ((W - 80) / 4), on = (R.settings.handStyle || 'realista') === sd[0];
@@ -161,11 +161,7 @@
         P.button('gc' + i, 40 + i * 74, 352, 60, 60, '', function () { R.settings.gloveColor = c; R.saveSettings(); if (R.input.applyHandStyle) R.input.applyHandStyle(); }, { fill: c, r: 30 });
         if ((R.settings.gloveColor || '#1d1f26') === c) { ui.roundRect(x, 36 + i * 74, 348, 68, 68, 34); x.lineWidth = 4; x.strokeStyle = '#fff'; x.stroke(); }
       });
-      ui.text(x, 'Hand tracking (câmera do celular)', 40, 460, 22, { weight: 700 });
-      var ht = R.handtrack;
-      ui.wrap(x, ht && ht.supported() ? ('Status: ' + ht.status() + '. Gesto de pinça = gatilho; palma virada para você por 1 s = menu. Detalhes do motor (GPU/CPU, filtros) na tela inicial do modo VR Box e em Ajustes.')
-        : 'Disponível no modo VR Box (celular com câmera traseira). No Oculus Go use o controle.', 40, 482, W - 80, 19, 28);
-      if (ht && ht.supported()) P.button('htt', 40, H - 86, 300, 58, ht.running() ? 'Desligar hand tracking' : 'Ligar hand tracking', function () { if (ht.running()) ht.stop(); else ht.start(); }, { active: ht.running(), lucide: 'hand', align: 'left', px: 19 });
+      ui.wrap(x, 'Escolha como a mão que segura o controle do Go aparece: só o controle, mão + controle, ou luvas (clássica/fofinha) com a cor acima. O gatilho e o touchpad do controle continuam sendo os comandos.', 40, 452, W - 80, 20, 30, { color: 'rgba(255,255,255,0.7)' });
     } else if (st.tab === 'env') {
       header(x, 'Ambiente', 'Fotos 360° reais (Poly Haven, CC0) projetadas em volta de você');
       ENVS.forEach(function (en, i) {
@@ -211,19 +207,15 @@
     ui.text(x, ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2), P.cw - 34, 70, 64, { align: 'right', weight: 300 });
     ui.text(x, DIAS[d.getDay()] + ', ' + d.getDate() + ' ' + MES[d.getMonth()] + ' ' + d.getFullYear(), P.cw - 34, 124, 20, { align: 'right', color: 'rgba(255,255,255,0.75)' });
     ui.text(x, (battery ? Math.round(battery.level * 100) + '%  ' : '') + R.fps + ' fps', P.cw - 34, 156, 17, { align: 'right', color: 'rgba(255,255,255,0.55)' });
-    var vb = R.vrbox && R.vrbox.active;
     var tiles = [['shot', 'camera', 'Captura', false, function () { R.capture.take(); }],
       ['rec', 'rotate-cw', 'Centralizar', false, function () { R.recenter(); }],
-      ['torch', 'flashlight', 'Lanterna', vb && R.vrbox.torchOn, function () { if (vb) R.vrbox.toggleTorch(); else ui.toast('Lanterna: só no modo VR Box (celular)'); }],
-      ['mr', 'scan-eye', 'Realidade mista', vb && R.vrbox.passthrough, function () { if (vb) R.vrbox.togglePassthrough(); else ui.toast('Realidade mista: só no modo VR Box'); }],
-      ['ht', 'hand', 'Mãos', R.handtrack && R.handtrack.running(), function () { if (R.handtrack && R.handtrack.supported()) { if (R.handtrack.running()) R.handtrack.stop(); else R.handtrack.start(); } else ui.toast('Hand tracking: modo VR Box'); }],
       ['fps', 'circle-dot', 'FPS', !!R.settings.showFps, function () { R.settings.showFps = !R.settings.showFps; R.saveSettings(); }],
-      ['full', 'monitor', 'Tela cheia', vb ? !!document.fullscreenElement : !!os.maxed, function () { if (vb) R.vrbox.toggleFullscreen(); else { var w = os.windows[os.windows.length - 1]; if (w) os.toggleMax(w); else ui.toast('Abra uma janela para maximizar'); } }],
-      ['floor', 'layers', 'Altura (chão)', false, function () { R.vrbox.calibrateFloor(R.vrbox.p0 ? 'head' : 'floor'); }],
-      ['wolvic', 'globe', 'Navegador', false, function () { os.openApp(R.browserNative && R.browserNative() ? 'webbrowser' : 'browser'); }]];
+      ['max', 'monitor', 'Maximizar', !!os.maxed, function () { var w = os.windows[os.windows.length - 1]; if (w) os.toggleMax(w); else ui.toast('Abra uma janela para maximizar'); }],
+      ['tv', 'tv', 'Vídeos', false, function () { os.openApp('videos'); }],
+      ['home', 'house', 'Início', false, function () { if (os.current) os.goHome(); }]];
     var tw = (P.cw - 50) / 3;
     tiles.forEach(function (t, i) {
-      P.button('t' + t[0], 18 + (i % 3) * tw, 180 + Math.floor(i / 3) * 104, tw - 8, 96, t[2], t[4], { active: t[3], lucide: t[1], r: 24, px: 16, iconSize: 28 });
+      P.button('t' + t[0], 18 + (i % 3) * tw, 190 + Math.floor(i / 3) * 110, tw - 8, 100, t[2], t[4], { active: t[3], lucide: t[1], r: 24, px: 16, iconSize: 28 });
     });
     os.slider(P, x, 'vol', 'Volume', 30, 500, P.cw - 60, R.settings.volume, 0, 1, function (v) { R.settings.volume = v; R.sfx.setVolume(v); }, function (v) { return Math.round(v * 100) + '%'; });
     os.slider(P, x, 'bri', 'Brilho', 30, 590, P.cw - 60, R.settings.brightness === undefined ? 1 : R.settings.brightness, 0.3, 1, function (v) { R.settings.brightness = v; os.applyBrightness(); }, function (v) { return Math.round(v * 100) + '%'; });

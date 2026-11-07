@@ -2,7 +2,7 @@
  * Código (html/js/css/json) = REDE PRIMEIRO: nunca mistura versão nova com motor antigo em cache.
  * Assets pesados e imutáveis (modelos, texturas, céus, wasm, onnx) = CACHE PRIMEIRO: abre instantâneo/offline.
  */
-var CACHE = 'wpollo-v3';
+var CACHE = 'wpollo-v4';
 self.addEventListener('install', function () { self.skipWaiting(); });
 self.addEventListener('activate', function (e) {
   e.waitUntil(caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return k !== CACHE; }).map(function (k) { return caches.delete(k); })); }).then(function () { return self.clients.claim(); }));
