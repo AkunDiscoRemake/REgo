@@ -241,16 +241,23 @@
 
   // ---------------------------------------------------------------- render estéreo
   var eyeL = new THREE.PerspectiveCamera(), eyeR = new THREE.PerspectiveCamera(), rt = null, post = null;
-  // realidade mista com escala real: a imagem da câmera vira um plano preso à cabeça, do tamanho exato
-  // que a lente da câmera enxerga (FOV da câmera, não o FOV do olho) => mão real e virtual se alinham.
-  var bgCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), bgMat = new THREE.MeshBasicMaterial({ depthTest: false, depthWrite: false });
-  var bgScene = new THREE.Scene(), bgPlane = new THREE.Mesh(new THREE.PlaneBufferGeometry(1, 1), bgMat); bgScene.add(bgPlane);
-  var BGD = 20, bgFwd = new THREE.Vector3();
-  function placeBg(eye) {
-    var fov = THREE.MathUtils.degToRad((R.handtrack && R.handtrack.cfg.camFov) || 66), v = V.video;
-    var asp = v && v.videoWidth ? v.videoWidth / v.videoHeight : 4 / 3, wdt = 2 * BGD * Math.tan(fov / 2);
-    bgPlane.quaternion.copy(qW); bgFwd.set(0, 0, -BGD).applyQuaternion(qW);
-    bgPlane.position.copy(camW).add(bgFwd); bgPlane.scale.set(wdt, wdt / asp, 1); bgPlane.updateMatrixWorld(true);
+  // realidade mista: a câmera preenche o olho inteiro (fundo em tela cheia, recorte "cover").
+  // Em passthrough, o olho virtual usa o MESMO campo de visão da câmera, então mãos e objetos
+  // virtuais alinham com a imagem real e tudo fica imersivo (sem moldura cinza).
+  var bgCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), bgScene = new THREE.Scene();
+  var bgMat = new THREE.ShaderMaterial({
+    uniforms: { tex: { value: null }, uvScale: { value: new THREE.Vector2(1, 1) } },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.999, 1.0); }',
+    fragmentShader: 'uniform sampler2D tex; uniform vec2 uvScale; varying vec2 vUv;\n' +
+      'void main(){ vec2 uv = (vUv - 0.5) * uvScale + 0.5; gl_FragColor = texture2D(tex, uv); }',
+    depthTest: false, depthWrite: false
+  });
+  bgScene.add(new THREE.Mesh(new THREE.PlaneBufferGeometry(2, 2), bgMat));
+  function bgCover(eyeAsp) {
+    var v = V.video, camAsp = v && v.videoWidth ? v.videoWidth / v.videoHeight : 4 / 3;
+    // "cover": preenche o viewport do olho sem distorcer, cortando o excedente
+    if (camAsp > eyeAsp) bgMat.uniforms.uvScale.value.set(eyeAsp / camAsp, 1);
+    else bgMat.uniforms.uvScale.value.set(1, camAsp / eyeAsp);
   }
   var hidden = [], hideT = 0;
   function collectSky(scene) { hidden = []; scene.traverse(function (o) { if (o.userData && (o.userData.sky || o.userData.ground)) hidden.push(o); }); }
@@ -275,14 +282,14 @@
     if (six) { r.setFramebuffer(V._fb6); W = V._fbW; H = V._fbH; } else { var s = r.getSize(new THREE.Vector2()); W = s.x * pr; H = s.y * pr; }
     camera.updateMatrixWorld(true); camera.getWorldPosition(camW); camera.getWorldQuaternion(qW);
     right.set(1, 0, 0).applyQuaternion(qW);
-    var half = W / 2, asp = half / H;
+    var half = W / 2, asp = half / H, mrPass = V.passthrough && V.bgTex && V.mode !== '6dof';
     [eyeL, eyeR].forEach(function (e, i) {
-      e.fov = V.cfg.fov; e.aspect = asp; e.near = camera.near; e.far = camera.far; e.updateProjectionMatrix();
+      e.fov = (mrPass ? ((R.handtrack && R.handtrack.cfg.camFov) || 66) : V.cfg.fov); e.aspect = asp; e.near = camera.near; e.far = camera.far; e.updateProjectionMatrix();
       e.position.copy(camW).addScaledVector(right, (i ? 0.5 : -0.5) * V.cfg.ipd); e.quaternion.copy(qW); e.updateMatrixWorld(true);
     });
     // realidade mista: esconde céu/chão virtuais e desenha a câmera atrás
     var mr = V.passthrough && V.bgTex;
-    if (mr) { if ((hideT -= R.rawDt) < 0) { collectSky(scene); hideT = 1; } for (var i = 0; i < hidden.length; i++) hidden[i].visible = false; bgMat.map = V.bgTex; bgMat.needsUpdate = bgMat._t !== V.bgTex; bgMat._t = V.bgTex; }
+    if (mr) { if ((hideT -= R.rawDt) < 0) { collectSky(scene); hideT = 1; } for (var i = 0; i < hidden.length; i++) hidden[i].visible = false; bgMat.uniforms.tex.value = V.bgTex; }
     var dist = V.cfg.distortion && !six;
     if (dist) {
       if (!rt || rt.width !== W || rt.height !== H) { if (rt) rt.dispose(); rt = new THREE.WebGLRenderTarget(W, H, { depthBuffer: true, stencilBuffer: false }); }
@@ -294,7 +301,7 @@
     for (var k = 0; k < 2; k++) {
       var x = k * half / pr, w = half / pr, h = H / pr; // setViewport multiplica pelo pixelRatio
       r.setViewport(x, 0, w, h); r.setScissor(x, 0, w, h);
-      if (mr) { if (V.mode === '6dof') r.render(bgScene, bgCam); else { placeBg(); r.render(bgScene, k ? eyeR : eyeL); } }
+      if (mr) { if (V.mode === '6dof') r.render(bgScene, bgCam); else { bgCover(asp); r.render(bgScene, bgCam); } }
       r.clearDepth();
       r.render(scene, k ? eyeR : eyeL);
     }

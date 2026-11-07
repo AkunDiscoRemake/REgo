@@ -85,18 +85,22 @@
       { x1: W * 0.15, y1: H * 0.3, x2: W * 0.15 + s * 0.7, y2: H * 0.3 + s * 0.7 },
       { x1: W * 0.85 - s * 0.7, y1: H * 0.3, x2: W * 0.85, y2: H * 0.3 + s * 0.7 }
     ];
-    var b = c[searchI++ % c.length]; b.search = true;
-    // o recorte do modelo usa margem 1,25: compensa para cobrir exatamente a área candidata
-    var cx = (b.x1 + b.x2) / 2, cy = (b.y1 + b.y2) / 2, h = (b.x2 - b.x1) / 2.5;
-    return [{ x1: cx - h, y1: cy - h, x2: cx + h, y2: cy + h, search: true }];
+    // rotações: a câmera do WebView pode chegar girada 90°; a que funcionar fica travada (C.rot)
+    var rots = C.rot !== undefined ? [C.rot] : [0, Math.PI / 2, -Math.PI / 2];
+    var out = [];
+    for (var n = 0; n < 3; n++) {
+      var idx = searchI++, b = c[idx % c.length], r = rots[Math.floor(idx / c.length) % rots.length];
+      var cx = (b.x1 + b.x2) / 2, cy = (b.y1 + b.y2) / 2, h = (b.x2 - b.x1) / 2.5; // compensa a margem 1,25 do recorte
+      out.push({ x1: cx - h, y1: cy - h, x2: cx + h, y2: cy + h, search: true, rot: r });
+    }
+    return out;
   }
   function detect(img, W, H) {
     if (nat && C.noDet) {
       // procura só a mão que falta (uma tentativa por quadro, sem atrapalhar a que já está sendo seguida)
       if (tracks.length >= cfg.maxHands) return Promise.resolve(tracks);
-      var cand = searchBoxes(W, H)[0];
-      if (tracks.some(function (t) { return iou(t, cand) > 0.3; })) return Promise.resolve(tracks);
-      return Promise.resolve(tracks.concat([cand]));
+      var cands = searchBoxes(W, H).filter(function (cd) { return !tracks.some(function (t) { return iou(t, cd) > 0.3; }); });
+      return Promise.resolve(tracks.concat(cands));
     }
     var s = Math.min(DET / W, DET / H), w = Math.round(W * s), h = Math.round(H * s);
     xDet.fillStyle = 'rgb(114,114,114)'; xDet.fillRect(0, 0, DET, DET); xDet.drawImage(img, 0, 0, w, h);
@@ -125,13 +129,17 @@
   }
   function estimate(img, box) {
     var cx = (box.x1 + box.x2) / 2, cy = (box.y1 + box.y2) / 2, side = Math.max(box.x2 - box.x1, box.y2 - box.y1) * (cfg.focusPad || 1.25), sc = POSE / side;
+    var rot = box.rot || 0, co = Math.cos(rot), si = Math.sin(rot);
+    var A = sc * co, B = sc * si, Cc = -sc * si, D = sc * co;
     xPose.setTransform(1, 0, 0, 1, 0, 0); xPose.fillStyle = '#000'; xPose.fillRect(0, 0, POSE, POSE);
-    xPose.setTransform(sc, 0, 0, sc, POSE / 2 - cx * sc, POSE / 2 - cy * sc); xPose.drawImage(img, 0, 0);
+    xPose.setTransform(A, B, Cc, D, POSE / 2 - (A * cx + Cc * cy), POSE / 2 - (B * cx + D * cy)); xPose.drawImage(img, 0, 0);
+    xPose.setTransform(1, 0, 0, 1, 0, 0);
+    var unmap = function (u, v, out, k) { var dx = (u - POSE / 2) / sc, dy = (v - POSE / 2) / sc; out[k * 2] = cx + co * dx + si * dy; out[k * 2 + 1] = cy - si * dx + co * dy; };
     var px = xPose.getImageData(0, 0, POSE, POSE).data, n = POSE * POSE;
     if (nat) return nrun('nnPose', px).then(function (d) {
       var kp = new Float32Array(42), score = new Float32Array(21), mean = 0;
-      for (var k = 0; k < 21; k++) { kp[k * 2] = (d[k * 3] - POSE / 2) / sc + cx; kp[k * 2 + 1] = (d[k * 3 + 1] - POSE / 2) / sc + cy; score[k] = d[k * 3 + 2]; mean += score[k]; }
-      return { kp: kp, sc: score, conf: mean / 21 };
+      for (var k = 0; k < 21; k++) { unmap(d[k * 3], d[k * 3 + 1], kp, k); score[k] = d[k * 3 + 2]; mean += score[k]; }
+      return { kp: kp, sc: score, conf: mean / 21, rot: rot };
     });
     for (var i = 0, j = 0; i < n; i++, j += 4) { fPose[i] = (px[j] - 123.675) / 58.395; fPose[n + i] = (px[j + 1] - 116.28) / 57.12; fPose[2 * n + i] = (px[j + 2] - 103.53) / 57.375; }
     return pose.run({ input: new ort.Tensor('float32', fPose, [1, 3, POSE, POSE]) }).then(function (o) {
@@ -140,10 +148,10 @@
         var bx = 0, vx = -1e9, by = 0, vy = -1e9, a, b;
         for (a = 0; a < L; a++) { var v = X[k * L + a]; if (v > vx) { vx = v; bx = a; } }
         for (b = 0; b < L; b++) { var w = Y[k * L + b]; if (w > vy) { vy = w; by = b; } }
-        kp[k * 2] = (bx / 2 - POSE / 2) / sc + cx; kp[k * 2 + 1] = (by / 2 - POSE / 2) / sc + cy;
+        unmap(bx / 2, by / 2, kp, k);
         score[k] = Math.min(vx, vy); mean += score[k];
       }
-      return { kp: kp, sc: score, conf: mean / 21 };
+      return { kp: kp, sc: score, conf: mean / 21, rot: rot };
     });
   }
   function iou(a, b) {
@@ -170,11 +178,17 @@
     }) : Promise.resolve(tracks);
     return boxesP.then(function (boxes) {
       var chain = Promise.resolve(), hands = [];
-      boxes.slice(0, cfg.maxHands).forEach(function (bx) { chain = chain.then(function () { return estimate(img, bx).then(function (h) { if (h.conf >= (bx.search ? 0.5 : cfg.poseConf)) hands.push(h); }); }); });
+      var bestSearch = null;
+      boxes.forEach(function (bx) { chain = chain.then(function () { return estimate(img, bx).then(function (h) {
+        C.lastConf = Math.max(C.lastConf * 0.9 || 0, h.conf);
+        if (bx.search) { if (h.conf >= 0.45 && (!bestSearch || h.conf > bestSearch.conf)) bestSearch = h; }
+        else if (h.conf >= cfg.poseConf) hands.push(h);
+      }); }); });
       return chain.then(function () {
-        var tb = []; hands = hands.filter(function (h) { var b = boxFrom(h.kp); if (tb.some(function (o) { return iou(o, b) > 0.4; })) return false; tb.push(b); return true; });
+        if (bestSearch && hands.length < cfg.maxHands) { hands.push(bestSearch); if (C.rot === undefined) C.rot = bestSearch.rot; }
+        var tb = []; hands = hands.filter(function (h) { var b = boxFrom(h.kp); b.rot = h.rot; if (tb.some(function (o) { return iou(o, b) > 0.4; })) return false; tb.push(b); return true; });
         tracks = tb;
-        return { hands: hands, ms: (G.performance || Date).now() - t0, ep: ep };
+        return { hands: hands, ms: (G.performance || Date).now() - t0, ep: ep, rot: C.rot, conf: C.lastConf };
       });
     });
   };
